@@ -1,0 +1,53 @@
+# Auto Draft: plan
+
+**One line:** the surveyor opens the day's points; Auto Draft draws the finished survey drawing (lines
+joined, symbols placed, levels written, every feature on its own layer) and saves a DXF any CAD program
+opens.
+
+**Who:** surveyors and survey firms doing topographic surveys for roads, housing schemes, irrigation and
+buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft about 10 minutes.
+
+## Decisions
+
+| Question | Decision | Why |
+|---|---|---|
+| Standalone app or AutoCAD plugin | Standalone Windows app (Flutter), writing DXF | Works with every CAD program, AutoCAD LT included (RoadPro's plugin can't reach LT); same stack as Slope Calculator and the Survey Toolkit |
+| DXF version | R12 (AC1009) | The one version every CAD and GIS program reads; checked with ezdxf in CI |
+| Close a shape | `CLS` (not `CL`) | `CL` is the centre line code; a control word can never be a code |
+| Electric pole | `EPL` | `EP` is edge of pavement |
+| Engine | plain Dart, no Flutter | the same code runs in the app, on the command line and in tests |
+| Lines | flat by default, 3D as a setting | most drawings are flat; Civil 3D users want levels on the lines |
+
+## Phases
+
+1. **Core (done in this first version).** Import CSV/TXT/Excel with column guessing; the code list
+   (38 codes); lines by code and number with `ST`, `END`, `CLS`, `RECT`, `ARC`/`EARC` and points on two
+   lines; symbols; level, number and code text sized for the scale; checks (unknown codes, one-point lines,
+   long jumps, duplicate numbers, points in one place, missing or zero levels, unsquare rectangles);
+   DXF R12 writer; command-line tool; sample survey; 60 tests; ezdxf check in CI.
+2. **Review (started).** Done: drawing view with zoom and pan, problem list that zooms to the place, layers
+   on/off, points list with find and code correction, drawing settings. Next: edit codes in the app
+   (name, layer, colour, symbol), undo, save the corrected points back to CSV, drag-and-drop a file.
+3. **Print-ready.** Title block with the firm's name and logo, legend made from the codes used, grid ticks
+   with coordinates, north arrow, scale bar; paper sizes A3/A1; PDF at scale.
+4. **Total station files.** Leica GSI, Sokkia SDR, Topcon and Nikon raw files straight in; KML for Google
+   Earth (shared with Excel to KML).
+5. **Contours.** TIN from the points, contours at any interval with index labels, breaklines from walls,
+   banks and drains; DXF and KML.
+6. **Launch.**
+   - First release `v0.1.0` (owner's go-ahead): `AutoDraft-Setup.exe` + `latest.json` on GitHub Releases.
+   - **Survey Toolkit:** add Auto Draft to the website's Toolkit feed (`lib/toolkit/feed.ts` in the website
+     repository: id `auto-draft`, this repository's latest release, NSIS quiet install `/S`), so the Toolkit
+     installs and updates it like the other tools. Toolkit app: its icon and description.
+   - **Website:** product page `/auto-draft` (what it does, screenshots, the code guide, download with the
+     "Your download is starting" notice), in the menu, Downloads and the sitemap; reviews.
+   - Sign-in with the website account, as the other programs, so downloads and use show in Admin.
+
+## How it is checked
+
+- Engine tests: codes, lines, curves (on the circle to 1e-6 m), rectangles, every check, import formats,
+  the DXF's structure (sections, every layer and block defined, ASCII only, numbers).
+- App tests: open → columns → draw → save; mistakes listed and fixed; settings remembered; layers; code
+  lists saved and loaded.
+- CI: the sample survey becomes a DXF that ezdxf reads and audits with no errors, flat and 3D; the Windows
+  program and installer are built, installed, opened (window, screenshot) and uninstalled.

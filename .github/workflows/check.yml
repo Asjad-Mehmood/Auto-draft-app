@@ -1,0 +1,126 @@
+name: Check
+
+# On every push and pull request: the code is formatted, the lints pass, every test passes, the
+# sample survey becomes a DXF that a CAD reader opens without errors, and the Windows program and
+# its installer build, install, open and uninstall. Nothing is published. The test installer is
+# kept for 14 days under the run's Artifacts, to try before a release.
+on:
+  push:
+    branches-ignore:
+      - 'dependabot/**'
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.7'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Formatted
+        run: dart format --output=none --set-exit-if-changed lib test tool
+
+      - name: Lints
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      - name: The code guide is up to date
+        run: |
+          dart run tool/codes_doc.dart > "$RUNNER_TEMP/CODES.md"
+          diff -u docs/CODES.md "$RUNNER_TEMP/CODES.md"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # the DXF the way a CAD program reads it: ezdxf's reader and auditor, flat and 3D, with labels
+      - name: The DXF opens cleanly
+        run: |
+          pip install --quiet ezdxf==1.4.5 matplotlib
+          dart run tool/autodraft.dart assets/samples/sample-survey.csv sample.dxf
+          python tool/check_dxf.py sample.dxf sample.png --expect-lines 9 --expect-inserts 23 --expect-points 67 --expect-texts 67
+          dart run tool/autodraft.dart assets/samples/sample-survey.csv sample-3d.dxf --3d --numbers --codes --scale 1000
+          python tool/check_dxf.py sample-3d.dxf --expect-lines 9 --expect-inserts 23 --expect-points 67
+
+      - name: Keep the sample drawing
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-drawing
+          path: |
+            sample.dxf
+            sample.png
+            sample-3d.dxf
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # the tests on Windows too: line endings, paths and the file dialogs' code run there
+      - name: Tests on Windows
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Build the Windows program
+        shell: pwsh
+        run: |
+          flutter build windows --release --dart-define=NO_UPDATE_CHECK=true
+          if (-not (Test-Path build\windows\x64\runner\Release\AutoDraft.exe)) { throw "AutoDraft.exe was not built" }
+          foreach ($dll in 'msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll') {
+            Copy-Item "C:\Windows\System32\$dll" build\windows\x64\runner\Release\
+          }
+
+      - name: Build the installer
+        shell: pwsh
+        working-directory: installer
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=0.0.0 installer.nsi
+          if (-not (Test-Path AutoDraft-Setup.exe)) { throw "The installer was not made" }
+
+      # install it, open it, a second start, uninstall: on a machine with no graphics card
+      - name: Install, open and uninstall the program
+        shell: pwsh
+        run: pwsh tool/windows_smoke.ps1 installer\AutoDraft-Setup.exe windows-smoke.png
+
+      - name: Keep the screenshot of the program opening
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-screenshot
+          path: windows-smoke.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # to try before a release: Actions -> this run -> Artifacts. It doesn't look for updates.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AutoDraft-Setup-test
+          path: installer/AutoDraft-Setup.exe
+          retention-days: 14
