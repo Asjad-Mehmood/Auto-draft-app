@@ -1,5 +1,6 @@
 import 'package:auto_draft/src/engine/codes.dart';
 import 'package:auto_draft/src/engine/import.dart';
+import 'package:auto_draft/src/engine/sheet.dart';
 import 'package:auto_draft/src/state/app_state.dart';
 import 'package:auto_draft/src/state/store.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,6 +105,20 @@ void main() {
     s.open(OpenedFile('b.csv', t, guessColumns(t)), guessColumns(t));
     expect(s.canUndo, isFalse);
     expect(s.changedCodes, 0);
+  });
+
+  test('a new survey keeps the firm and people, not the title', () {
+    final store = Store.memory();
+    final s = _opened(store)
+      ..setSheetInfo(const SheetInfo(firm: 'Al-Noor', surveyedBy: 'Asif', title: 'Job 42', drawingNo: 'AD-42'));
+    final t = readText(surveyWithMistakes);
+    s.open(OpenedFile('b.csv', t, guessColumns(t)), guessColumns(t));
+    expect(s.sheetInfo.firm, 'Al-Noor');
+    expect(s.sheetInfo.surveyedBy, 'Asif');
+    expect(s.sheetInfo.title, '');
+    expect(s.sheetInfo.drawingNo, '');
+    expect(AppState(store).sheetInfo.firm, 'Al-Noor');
+    expect(s.pdfName, 'b.pdf');
   });
 
   test('the history keeps the last 100 steps', () {

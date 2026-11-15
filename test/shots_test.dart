@@ -118,6 +118,31 @@ void main() {
     t.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).hideCurrentSnackBar();
     await t.tap(find.byTooltip('More'));
     await shot('10-more-menu');
+    await t.tapAt(const Offset(5, 400));
+    await t.pumpAndSettle();
+
+    // phase 3: the sample on its sheet, with the title block filled in
+    await t.tap(find.byTooltip('More'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Close this survey'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Don\'t save'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Try the sample survey'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Draw it'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Sheet and title block: paper, firm, title, date'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const ValueKey('sheet-firm')), 'Al-Noor Surveys');
+    await t.enterText(find.byKey(const ValueKey('sheet-title')), 'Topographic survey of plot 42, Model Town');
+    await t.enterText(find.byKey(const ValueKey('sheet-surveyedBy')), 'M. Asif');
+    await t.enterText(find.byKey(const ValueKey('sheet-drawingNo')), 'AD-042');
+    await t.pumpAndSettle();
+    await shot('11-sheet-dialog');
+    await t.tap(find.text('Apply'));
+    await t.pumpAndSettle();
+    await shot('12-sheet');
     debugDisableShadows = true; // as the test framework expects it back
   });
 }

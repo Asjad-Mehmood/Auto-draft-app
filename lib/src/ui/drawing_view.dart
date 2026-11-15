@@ -10,6 +10,7 @@ import '../brand.dart';
 import '../engine/drawing.dart';
 import '../engine/geometry.dart';
 import '../engine/point.dart';
+import '../engine/sheet.dart';
 import '../engine/symbols.dart';
 import '../state/app_state.dart';
 import 'aci.dart';
@@ -56,11 +57,29 @@ class _DrawingViewState extends State<DrawingView> {
     super.dispose();
   }
 
-  Bounds? get _bounds => widget.state.drawing?.bounds;
+  /// What is shown: the survey, and the sheet round it when it is on
+  Bounds? get _bounds {
+    final b = widget.state.drawing?.bounds;
+    final sh = widget.state.showSheet ? widget.state.sheet!.bounds : null;
+    if (b == null || sh == null) return b;
+    return Bounds(
+      math.min(b.minE, sh.minE),
+      math.min(b.minN, sh.minN),
+      math.max(b.maxE, sh.maxE),
+      math.max(b.maxN, sh.maxN),
+      b.minZ,
+      b.maxZ,
+    );
+  }
+
+  /// The ground point at the view's top left, fixed when the view is fitted
+  double _refE = 0, _refN = 0;
 
   void _fit() {
     final b = _bounds;
     if (b == null || _size.isEmpty) return;
+    _refE = b.minE;
+    _refN = b.maxN;
     final w = math.max(b.width, 1.0), h = math.max(b.height, 1.0);
     _zoom = math.min((_size.width - 80) / w, (_size.height - 80) / h).clamp(1e-4, 1e4);
     _pan = Offset((_size.width - w * _zoom) / 2, (_size.height - h * _zoom) / 2);
@@ -79,15 +98,11 @@ class _DrawingViewState extends State<DrawingView> {
   }
 
   /// Ground → screen. The drawing's origin is its top-left corner (min E, max N).
-  Offset _toLocal(Vertex v) {
-    final b = _bounds!;
-    return Offset((v.e - b.minE) * _zoom, (b.maxN - v.n) * _zoom) + _pan;
-  }
+  Offset _toLocal(Vertex v) => Offset((v.e - _refE) * _zoom, (_refN - v.n) * _zoom) + _pan;
 
   (double, double) _toGround(Offset o) {
-    final b = _bounds!;
     final p = o - _pan;
-    return (b.minE + p.dx / _zoom, b.maxN - p.dy / _zoom);
+    return (_refE + p.dx / _zoom, _refN - p.dy / _zoom);
   }
 
   void _zoomAt(Offset at, double factor) {
@@ -158,6 +173,7 @@ class _DrawingViewState extends State<DrawingView> {
                                 _zoom,
                                 widget.state.focus.value,
                                 widget.state.picked,
+                                widget.state.showSheet ? widget.state.sheet : null,
                               ),
                         child: const SizedBox.expand(),
                       ),
@@ -306,7 +322,8 @@ class _PointCard extends StatelessWidget {
 }
 
 class _Painter extends CustomPainter {
-  _Painter(this.d, this.hidden, this.toLocal, this.zoom, this.focus, this.picked);
+  _Painter(this.d, this.hidden, this.toLocal, this.zoom, this.focus, this.picked, this.sheet);
+  final Sheet? sheet;
   final Drawing d;
   final Set<String> hidden;
   final Offset Function(Vertex) toLocal;
@@ -319,6 +336,16 @@ class _Painter extends CustomPainter {
     canvas.drawRect(Offset.zero & size, Paint()..color = BrandColors.canvas);
     final colors = {for (final l in d.layers) l.name: aciOnDark(l.color)};
     final screen = Offset.zero & size;
+
+    // the paper, a shade lighter than the background
+    final sh = sheet;
+    if (sh != null) {
+      final b = sh.bounds;
+      canvas.drawRect(
+        Rect.fromPoints(toLocal(Vertex(b.minE, b.maxN)), toLocal(Vertex(b.maxE, b.minN))),
+        Paint()..color = const Color(0xFF121C2F),
+      );
+    }
 
     // lines
     for (final l in d.lines) {
@@ -385,6 +412,8 @@ class _Painter extends CustomPainter {
       }
     }
 
+    if (sh != null) _paintSheet(canvas, sh, screen);
+
     // the picked problem or point
     final f = focus;
     if (f != null) {
@@ -415,6 +444,75 @@ class _Painter extends CustomPainter {
       }
     }
   }
+
+  void _paintSheet(Canvas canvas, Sheet sh, Rect screen) {
+    final mmPx = sh.f * zoom; // pixels per mm on paper
+    for (final item in sh.items) {
+      switch (item) {
+        case SheetPolyline(:final layer, :final points, :final closed, :final color, :final lineType, :final weightMm):
+          final path = Path();
+          for (var i = 0; i < points.length; i++) {
+            final p = toLocal(points[i]);
+            i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+          }
+          if (closed) path.close();
+          final paint = Paint()
+            ..color = aciOnDark(color ?? _sheetColor(layer))
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = (weightMm * mmPx).clamp(0.6, 3.0);
+          if (lineType == null || lineType == 'CONTINUOUS') {
+            canvas.drawPath(path, paint);
+          } else {
+            _dashed(canvas, path, paint, lineType);
+          }
+        case SheetSolid(:final layer, :final corners):
+          final path = Path();
+          for (var i = 0; i < corners.length; i++) {
+            final p = toLocal(corners[i]);
+            i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+          }
+          canvas.drawPath(path..close(), Paint()..color = aciOnDark(_sheetColor(layer)));
+        case SheetSymbol(:final layer, :final symbol, :final at, :final size, :final color):
+          paintSymbol(
+            canvas,
+            symbols[symbol] ?? symbols[unknownSymbol]!,
+            toLocal(at),
+            size * zoom,
+            aciOnDark(color ?? _sheetColor(layer)),
+          );
+        case SheetText(:final layer, :final text, :final at, :final height, :final align, :final rotation, :final bold):
+          final h = height * zoom;
+          if (h < 4) continue;
+          final base = toLocal(at);
+          if (!screen.inflate(400).contains(base)) continue;
+          final tp = TextPainter(
+            text: TextSpan(
+              text: text,
+              style: TextStyle(
+                color: aciOnDark(_sheetColor(layer)),
+                fontSize: h * 1.38,
+                height: 1,
+                fontFamily: 'Inter',
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          final dx = switch (align) {
+            SheetAlign.left => 0.0,
+            SheetAlign.center => -tp.width / 2,
+            SheetAlign.right => -tp.width,
+          };
+          canvas.save();
+          canvas.translate(base.dx, base.dy);
+          canvas.rotate(-rotation * math.pi / 180);
+          tp.paint(canvas, Offset(dx, -tp.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+          canvas.restore();
+      }
+    }
+  }
+
+  int _sheetColor(String name) => SheetLayers.all.where((l) => l.name == name).firstOrNull?.color ?? 7;
 
   /// Line types on screen, at a fixed size in pixels
   void _dashed(Canvas canvas, Path path, Paint paint, String type) {

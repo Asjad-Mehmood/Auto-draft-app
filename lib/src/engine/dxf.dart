@@ -6,6 +6,8 @@
 // layer per feature with its colour and line type, a block for each symbol, then the lines
 // (POLYLINE), symbols (INSERT), point markers (POINT) and text (TEXT).
 import 'drawing.dart';
+import 'geometry.dart';
+import 'sheet.dart';
 import 'symbols.dart';
 
 /// The line types: (name, description, pattern in mm on paper; dash > 0, gap < 0, dot 0)
@@ -18,10 +20,21 @@ const _lineTypes = <(String, String, List<double>)>[
   ('DOT', 'Dot . . . .', [0, -1.5]),
 ];
 
-String writeDxf(Drawing d, {String title = ''}) {
+/// [sheet]: the printed sheet (frame, grid, legend, title block) around the survey, when wanted
+String writeDxf(Drawing d, {Sheet? sheet}) {
   final w = _Writer();
   final o = d.options;
-  final b = d.bounds;
+  final db = d.bounds;
+  final b = sheet == null || db == null
+      ? db
+      : Bounds(
+          db.minE < sheet.origin.e ? db.minE : sheet.origin.e,
+          db.minN < sheet.origin.n ? db.minN : sheet.origin.n,
+          db.maxE > sheet.bounds.maxE ? db.maxE : sheet.bounds.maxE,
+          db.maxN > sheet.bounds.maxN ? db.maxN : sheet.bounds.maxN,
+          db.minZ,
+          db.maxZ,
+        );
 
   // ---- header
   w.section('HEADER');
@@ -56,7 +69,7 @@ String writeDxf(Drawing d, {String title = ''}) {
   }
   w.endTable();
 
-  final layers = [const Layer('0', 7), ...d.layers];
+  final layers = [const Layer('0', 7), ...d.layers, if (sheet != null) ...SheetLayers.all];
   w.table('LAYER', layers.length);
   for (final l in layers) {
     w.pair(0, 'LAYER');
@@ -82,7 +95,12 @@ String writeDxf(Drawing d, {String title = ''}) {
   w.endSection();
 
   // ---- blocks: the symbols used, one unit wide, in BYBLOCK colour so they take their layer's
-  final used = {for (final s in d.symbols) s.symbol};
+  final used = {
+    for (final s in d.symbols) s.symbol,
+    if (sheet != null)
+      for (final i in sheet.items)
+        if (i is SheetSymbol) i.symbol,
+  };
   w.section('BLOCKS');
   for (final name in used) {
     final def = symbols[name] ?? symbols[unknownSymbol]!;
@@ -175,9 +193,62 @@ String writeDxf(Drawing d, {String title = ''}) {
     w.pair(40, w.num(t.height));
     w.pair(1, _text(t.text));
   }
+  if (sheet != null) _sheet(w, sheet);
   w.endSection();
   w.pair(0, 'EOF');
   return w.toString();
+}
+
+void _sheet(_Writer w, Sheet sheet) {
+  for (final item in sheet.items) {
+    switch (item) {
+      case SheetPolyline(:final layer, :final points, :final closed, :final color, :final lineType):
+        w.pair(0, 'POLYLINE');
+        w.pair(8, layer);
+        if (color != null) w.pair(62, '$color');
+        if (lineType != null) w.pair(6, lineType);
+        w.pair(66, '1');
+        w.point(0, 0, 0);
+        w.pair(70, closed ? '1' : '0');
+        for (final v in points) {
+          w.pair(0, 'VERTEX');
+          w.pair(8, layer);
+          w.point(v.e, v.n, 0);
+        }
+        w.pair(0, 'SEQEND');
+        w.pair(8, layer);
+      case SheetText(:final layer, :final text, :final at, :final height, :final align, :final rotation):
+        w.pair(0, 'TEXT');
+        w.pair(8, layer);
+        w.point(at.e, at.n, 0);
+        w.pair(40, w.num(height));
+        w.pair(1, _text(text));
+        if (rotation != 0) w.pair(50, w.num(rotation));
+        if (align != SheetAlign.left) {
+          w.pair(72, align == SheetAlign.center ? '1' : '2');
+          w.point(at.e, at.n, 0, 11);
+        }
+      case SheetSolid(:final layer, :final corners):
+        // R12 SOLID takes its corners as 1, 2, 4, 3; a triangle repeats its last
+        final c = corners;
+        final third = c.length > 3 ? c[3] : c[2];
+        w.pair(0, 'SOLID');
+        w.pair(8, layer);
+        w.point(c[0].e, c[0].n, 0);
+        w.point(c[1].e, c[1].n, 0, 11);
+        w.point(third.e, third.n, 0, 12);
+        w.point(c[2].e, c[2].n, 0, 13);
+      case SheetSymbol(:final layer, :final symbol, :final at, :final size, :final color):
+        w.pair(0, 'INSERT');
+        w.pair(8, layer);
+        if (color != null) w.pair(62, '$color');
+        w.pair(2, symbol);
+        w.point(at.e, at.n, 0);
+        w.pair(41, w.num(size));
+        w.pair(42, w.num(size));
+        w.pair(43, w.num(size));
+    }
+  }
 }
 
 /// DXF R12 text is plain: no line breaks, and characters outside Latin-1 as \U+XXXX

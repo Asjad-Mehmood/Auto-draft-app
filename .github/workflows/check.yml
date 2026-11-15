@@ -58,6 +58,17 @@ jobs:
           dart run tool/autodraft.dart assets/samples/sample-survey.csv sample-3d.dxf --3d --numbers --codes --scale 1000
           python tool/check_dxf.py sample-3d.dxf --expect-lines 9 --expect-inserts 23 --expect-points 67
 
+      # with the sheet: frame, grid, legend and title block in the DXF, and the PDF at scale
+      - name: The sheet, in the DXF and as a PDF
+        run: |
+          sudo apt-get install -y --no-install-recommends poppler-utils > /dev/null
+          dart run tool/autodraft.dart assets/samples/sample-survey.csv sheet.dxf --pdf sheet.pdf --title "Sample survey" --firm "Auto Draft"
+          python tool/check_dxf.py sheet.dxf sheet-dxf.png --expect-points 67
+          pdfinfo sheet.pdf | tee pdfinfo.txt
+          grep -q "Pages: *1" pdfinfo.txt
+          grep -q "Page size: *1190.55 x 841.89 pts (A3)" pdfinfo.txt
+          pdftoppm -png -r 100 -singlefile sheet.pdf sheet-pdf
+
       - name: Keep the sample drawing
         if: always()
         uses: actions/upload-artifact@v4
@@ -67,6 +78,10 @@ jobs:
             sample.dxf
             sample.png
             sample-3d.dxf
+            sheet.dxf
+            sheet.pdf
+            sheet-dxf.png
+            sheet-pdf.png
           if-no-files-found: ignore
           retention-days: 14
 

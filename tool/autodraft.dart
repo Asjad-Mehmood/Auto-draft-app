@@ -5,17 +5,22 @@
 //
 // Used by the checks (tool/check_dxf.py opens what it writes) and handy for trying a file.
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:auto_draft/src/engine/builder.dart';
 import 'package:auto_draft/src/engine/codes.dart';
 import 'package:auto_draft/src/engine/drawing.dart';
 import 'package:auto_draft/src/engine/dxf.dart';
 import 'package:auto_draft/src/engine/import.dart';
+import 'package:auto_draft/src/engine/pdf.dart';
+import 'package:auto_draft/src/engine/sheet.dart';
 
-void main(List<String> args) {
+Future<void> main(List<String> args) async {
   final files = <String>[];
   var options = const DraftOptions();
   var library = CodeLibrary.defaults();
+  SheetInfo? sheet;
+  String? pdfPath;
   for (var i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--scale':
@@ -24,6 +29,17 @@ void main(List<String> args) {
         options = options.copyWith(lines3d: true);
       case '--numbers':
         options = options.copyWith(pointNumbers: true);
+      case '--sheet':
+        // --sheet auto | A4 … A0
+        final p = args[++i].toLowerCase();
+        sheet = (sheet ?? const SheetInfo()).copyWith(paper: () => Paper.values.where((x) => x.name == p).firstOrNull);
+      case '--pdf':
+        pdfPath = args[++i];
+        sheet ??= const SheetInfo();
+      case '--title':
+        sheet = (sheet ?? const SheetInfo()).copyWith(title: args[++i]);
+      case '--firm':
+        sheet = (sheet ?? const SheetInfo()).copyWith(firm: args[++i]);
       case '--codes':
         options = options.copyWith(codes: true);
       case '--code-list':
@@ -39,7 +55,7 @@ void main(List<String> args) {
   }
   if (files.length != 2) {
     stderr.writeln(
-      'usage: dart run tool/autodraft.dart survey.csv|.txt|.xlsx drawing.dxf [--scale 500] [--3d] [--numbers] [--codes]',
+      'usage: dart run tool/autodraft.dart survey.csv|.txt|.xlsx drawing.dxf [--scale 500] [--3d] [--numbers] [--codes] [--sheet auto|a4..a0] [--pdf out.pdf] [--title T] [--firm F]',
     );
     exit(2);
   }
@@ -50,7 +66,24 @@ void main(List<String> args) {
   final columns = guessColumns(table);
   final read = readPoints(table, columns);
   final drawing = buildDrawing(read.points, library, options);
-  File(files[1]).writeAsStringSync(writeDxf(drawing), flush: true);
+  final sh = sheet == null ? null : buildSheet(drawing, sheet);
+  File(files[1]).writeAsStringSync(writeDxf(drawing, sheet: sh), flush: true);
+  if (sh != null && pdfPath != null) {
+    ByteData font(String f) => ByteData.sublistView(File('assets/fonts/$f').readAsBytesSync());
+    final bytes = await writePdf(
+      drawing,
+      sh,
+      PdfFonts(font('Inter_400Regular.ttf'), font('Inter_700Bold.ttf')),
+      title: sheet!.title,
+    );
+    File(pdfPath).writeAsBytesSync(bytes, flush: true);
+    stdout.writeln('pdf: $pdfPath (${(bytes.length / 1024).round()} KB)');
+  }
+  if (sh != null) {
+    stdout.writeln(
+      'sheet: ${sh.label}, grid every ${sh.gridInterval} m${sh.fits ? '' : ' - DOES NOT FIT: ${sh.advice}'}',
+    );
+  }
   stdout.writeln(
     '${read.points.length} points, ${drawing.lines.length} lines, ${drawing.symbols.length} symbols, '
     '${drawing.texts.length} texts, ${drawing.layers.length} layers -> ${files[1]}',
