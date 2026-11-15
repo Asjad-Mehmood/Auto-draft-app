@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:auto_draft/src/account/account.dart';
+import 'package:auto_draft/src/account/api.dart';
 import 'package:auto_draft/src/app.dart';
 import 'package:auto_draft/src/state/app_state.dart';
 import 'package:auto_draft/src/state/files.dart';
 import 'package:auto_draft/src/state/store.dart';
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 /// Files to "open" are queued; "saved" files are kept
 class FakeFiles implements FileIo {
@@ -30,11 +34,63 @@ class FakeFiles implements FileIo {
   }
 }
 
+/// The website, as the app sees it: a signed-in account; every request kept to look at
+class FakeSite {
+  final requests = <http.Request>[];
+
+  /// What /api/auth/login answers (null: the email still needs its code)
+  bool loginOk = true;
+
+  static const user = {'id': 'u1', 'email': 'asif@example.com', 'name': 'M. Asif'};
+
+  late final client = MockClient((req) async {
+    requests.add(req);
+    String json(Object o) => jsonEncode(o);
+    return switch (req.url.path) {
+      '/api/auth/me' => http.Response(json({'user': user}), 200),
+      '/api/auth/login' =>
+        loginOk
+            ? http.Response(json({'user': user, 'token': 't1'}), 200)
+            : http.Response(
+                json({
+                  'error': 'Confirm your email',
+                  'verifyRequired': true,
+                  'challenge': 'c1',
+                  'sentTo': 'a***@example.com',
+                }),
+                403,
+              ),
+      '/api/auth/verify-email' => http.Response(json({'user': user, 'token': 't2'}), 200),
+      '/api/auth/logout' => http.Response('{}', 200),
+      '/api/user/activity' => http.Response('{}', 201),
+      _ => http.Response(json({'error': 'Not found'}), 404),
+    };
+  });
+
+  /// The activity reports sent, as JSON
+  List<Map<String, Object?>> get reports => [
+    for (final r in requests)
+      if (r.url.path == '/api/user/activity') jsonDecode(r.body) as Map<String, Object?>,
+  ];
+}
+
 class Harness {
-  Harness({Store? store}) : state = AppState(store ?? Store.memory());
+  /// [signedIn]: the account is remembered on this PC (the app opens straight away)
+  Harness({Store? store, bool signedIn = true}) : this._(store ?? Store.memory(), signedIn);
+
+  Harness._(this.store, bool signedIn) : state = AppState(store) {
+    if (signedIn && store.readJson('account') == null) {
+      store.writeJson('account', {'token': 't0', 'user': FakeSite.user});
+    }
+    account = Account(Api(base: 'https://www.exceltokml.com', client: site.client), store);
+  }
+
+  final Store store;
   final AppState state;
   final files = FakeFiles();
-  Widget get app => AutoDraftApp(state: state, files: files);
+  final site = FakeSite();
+  late final Account account;
+  Widget get app => AutoDraftApp(state: state, files: files, account: account);
 }
 
 /// A survey with mistakes in it, for the problem list

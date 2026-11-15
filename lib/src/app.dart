@@ -1,8 +1,10 @@
-// The app: theme, the window, and the update check on Windows.
+// The app: theme, the sign-in (an Excel to KML account), the window, and the update check.
 import 'package:flutter/material.dart';
 
+import 'account/account.dart';
 import 'brand.dart';
 import 'screens/home_screen.dart';
+import 'screens/sign_in_screen.dart';
 import 'state/app_state.dart';
 import 'state/files.dart';
 import 'ui/theme.dart';
@@ -13,11 +15,13 @@ class AutoDraftApp extends StatefulWidget {
     super.key,
     required this.state,
     required this.files,
+    required this.account,
     this.checkForUpdates = false,
     this.dropFiles = false,
   });
   final AppState state;
   final FileIo files;
+  final Account account;
   final bool checkForUpdates;
 
   /// Drag-and-drop of files onto the window (the real program; tests have no drop support)
@@ -33,6 +37,7 @@ class _AutoDraftAppState extends State<AutoDraftApp> {
   @override
   void initState() {
     super.initState();
+    widget.account.restore();
     if (widget.checkForUpdates) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final c = _navigator.currentContext;
@@ -47,6 +52,11 @@ class _AutoDraftAppState extends State<AutoDraftApp> {
     title: appName,
     debugShowCheckedModeBanner: false,
     theme: appTheme(),
-    home: HomeScreen(state: widget.state, files: widget.files, dropFiles: widget.dropFiles),
+    home: ListenableBuilder(
+      listenable: widget.account,
+      builder: (context, _) => widget.account.signedIn
+          ? HomeScreen(state: widget.state, files: widget.files, account: widget.account, dropFiles: widget.dropFiles)
+          : SignInScreen(account: widget.account),
+    ),
   );
 }

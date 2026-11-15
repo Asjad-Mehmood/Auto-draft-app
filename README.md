@@ -31,6 +31,9 @@ levels written, every feature on its own layer.</p>
 
 <p align="center"><img src="docs/screens/3-drawing.png" width="760" alt="Auto Draft with the sample survey drawn"></p>
 
+Auto Draft is free; it is used with a free Excel to KML account (the same as exceltokml.com and the
+other programs), signed in once and remembered on the PC. Surveys never leave the PC.
+
 ## Field codes
 
 | Typed | Meaning |
