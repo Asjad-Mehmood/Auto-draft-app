@@ -7,7 +7,9 @@ import '../engine/drawing.dart';
 import '../engine/symbols.dart';
 import '../state/app_state.dart';
 import '../ui/aci.dart';
+import '../ui/symbol_icon.dart';
 import '../ui/theme.dart';
+import 'edits.dart';
 
 class SidePanel extends StatelessWidget {
   const SidePanel({super.key, required this.state, required this.onSaveCodes, required this.onLoadCodes});
@@ -118,6 +120,16 @@ class _Problems extends StatelessWidget {
             detail: d.problems[i].detail,
             selected: state.selectedProblem == i,
             onTap: d.problems[i].at == null ? null : () => state.selectProblem(i),
+            fixes: switch (d.problems[i].kind) {
+              ProblemKind.unknownCode => [
+                (
+                  'Add ${d.problems[i].subject} to the code list',
+                  () => editCode(context, state, suggest: d.problems[i].subject),
+                ),
+                ('Change it on every point', () => replaceEverywhere(context, state, d.problems[i].subject)),
+              ],
+              _ => const [],
+            },
           ),
       ],
     );
@@ -131,11 +143,15 @@ class _ProblemCard extends StatelessWidget {
     required this.detail,
     this.selected = false,
     this.onTap,
+    this.fixes = const [],
   });
   final Severity severity;
   final String title, detail;
   final bool selected;
   final VoidCallback? onTap;
+
+  /// One-click fixes: (label, action)
+  final List<(String, VoidCallback)> fixes;
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +190,29 @@ class _ProblemCard extends StatelessWidget {
                         Text(
                           'Show on the drawing',
                           style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
+                        ),
+                      ],
+                      if (fixes.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final (label, run) in fixes)
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  minimumSize: Size.zero,
+                                  textStyle: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                onPressed: run,
+                                child: Text(label),
+                              ),
+                          ],
                         ),
                       ],
                     ],
@@ -258,32 +297,6 @@ class _Points extends StatefulWidget {
 class _PointsState extends State<_Points> {
   String _find = '';
 
-  Future<void> _edit(int index) async {
-    final p = widget.state.points[index];
-    final c = TextEditingController(text: p.code);
-    final code = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Code of point ${p.id}'),
-        content: SizedBox(
-          width: 360,
-          child: TextField(
-            controller: c,
-            autofocus: true,
-            style: mono.copyWith(fontSize: 15),
-            decoration: const InputDecoration(helperText: 'For example: RE1, RE1 ST, BLD2 CLS, TR'),
-            onSubmitted: (v) => Navigator.pop(context, v),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, c.text), child: const Text('Redraw')),
-        ],
-      ),
-    );
-    if (code != null) widget.state.setCode(index, code);
-  }
-
   @override
   Widget build(BuildContext context) {
     final pts = widget.state.points;
@@ -309,6 +322,13 @@ class _PointsState extends State<_Points> {
           child: Row(
             children: [
               Text('${shown.length} of ${pts.length} points', style: const TextStyle(color: Tone.muted, fontSize: 12)),
+              if (widget.state.changedCodes > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '· ${widget.state.changedCodes} changed',
+                  style: const TextStyle(color: Tone.info, fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              ],
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -328,34 +348,44 @@ class _PointsState extends State<_Points> {
             itemBuilder: (context, k) {
               final i = shown[k];
               final p = pts[i];
-              return InkWell(
-                onTap: () => widget.state.showPoint(p),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 64,
-                        child: Text(
-                          p.id,
-                          style: mono.copyWith(fontWeight: FontWeight.w700),
-                          overflow: TextOverflow.ellipsis,
+              final was = widget.state.fileCodeOf(i);
+              return Material(
+                color: widget.state.picked == i ? const Color(0xFFFFF4D6) : Colors.transparent,
+                child: InkWell(
+                  onTap: () => widget.state.showPoint(p),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 64,
+                          child: Text(
+                            p.id,
+                            style: mono.copyWith(fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          p.code.isEmpty ? '(no code)' : p.code,
-                          style: mono.copyWith(color: p.code.isEmpty ? Tone.muted : Tone.ink),
-                          overflow: TextOverflow.ellipsis,
+                        Expanded(
+                          child: Tooltip(
+                            message: was == null ? '' : 'Changed here. In the file: ${was.isEmpty ? '(no code)' : was}',
+                            child: Text(
+                              p.code.isEmpty ? '(no code)' : p.code,
+                              style: mono.copyWith(
+                                color: p.code.isEmpty ? Tone.muted : (was != null ? Tone.info : Tone.ink),
+                                fontWeight: was != null ? FontWeight.w700 : null,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
-                      ),
-                      Text(p.z?.toStringAsFixed(3) ?? '—', style: mono.copyWith(color: Tone.muted)),
-                      IconButton(
-                        tooltip: 'Change the code of point ${p.id}',
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        onPressed: () => _edit(i),
-                      ),
-                    ],
+                        Text(p.z?.toStringAsFixed(3) ?? '—', style: mono.copyWith(color: Tone.muted)),
+                        IconButton(
+                          tooltip: 'Change the code of point ${p.id}',
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          onPressed: () => editPointCode(context, widget.state, i),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -390,6 +420,7 @@ class _Codes extends StatelessWidget {
         for (final c in codes)
           ListTile(
             dense: true,
+            onTap: () => editCode(context, state, existing: c),
             leading: Container(
               width: 44,
               padding: const EdgeInsets.symmetric(vertical: 3),
@@ -406,14 +437,22 @@ class _Codes extends StatelessWidget {
               '${c.layer}${c.kind == CodeKind.point ? ' · ${symbols[c.symbol]?.label ?? 'symbol'}' : (c.lineType == 'CONTINUOUS' ? '' : ' · ${c.lineType.toLowerCase()}')}',
               style: const TextStyle(fontSize: 12),
             ),
-            trailing: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: aciColor(c.color),
-                border: Border.all(color: Tone.line),
-                borderRadius: BorderRadius.circular(3),
-              ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (c.kind == CodeKind.point) ...[SymbolIcon(c.symbol, size: 18), const SizedBox(width: 10)],
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: aciColor(c.color),
+                    border: Border.all(color: Tone.line),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 18, color: Tone.muted),
+              ],
             ),
           ),
       ],
@@ -427,6 +466,11 @@ class _Codes extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              FilledButton.icon(
+                onPressed: () => editCode(context, state),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add a code'),
+              ),
               OutlinedButton.icon(
                 onPressed: onLoad,
                 icon: const Icon(Icons.file_open_outlined, size: 18),
@@ -437,11 +481,24 @@ class _Codes extends StatelessWidget {
                 icon: const Icon(Icons.save_alt, size: 18),
                 label: const Text('Save this list'),
               ),
-              TextButton(onPressed: state.resetLibrary, child: const Text('Back to the standard list')),
+              TextButton(
+                onPressed: () {
+                  state.resetLibrary();
+                  sayDone(context, state, 'Back to the standard code list.');
+                },
+                child: const Text('Back to the standard list'),
+              ),
             ],
           ),
         ),
         const _HowCodesWork(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: Text(
+            '${all.length} codes. Click one to change it.',
+            style: const TextStyle(color: Tone.muted, fontSize: 12.5),
+          ),
+        ),
         group('Lines', all.where((c) => c.kind == CodeKind.line)),
         group('Points', all.where((c) => c.kind == CodeKind.point)),
       ],

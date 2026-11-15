@@ -2,6 +2,7 @@
 // file is open it shows how to start, with the sample survey to try.
 import 'dart:convert';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,15 +14,44 @@ import '../state/files.dart';
 import '../ui/drawing_view.dart';
 import '../ui/theme.dart';
 import 'columns_dialog.dart';
+import 'edits.dart';
 import 'options_dialog.dart';
 import 'side_panel.dart';
 
 const surveyExtensions = ['csv', 'txt', 'prn', 'xlsx', 'xls', 'asc', 'pts'];
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.state, required this.files});
+/// A keyboard action that steps aside while a text box has the focus, so Ctrl+Z there undoes typing
+class _AppAction<T extends Intent> extends CallbackAction<T> {
+  _AppAction(void Function() run) : super(onInvoke: (_) => run());
+
+  @override
+  bool isEnabled(T intent) => FocusManager.instance.primaryFocus?.context?.widget is! EditableText;
+}
+
+class _UndoIntent extends Intent {
+  const _UndoIntent();
+}
+
+class _RedoIntent extends Intent {
+  const _RedoIntent();
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key, required this.state, required this.files, this.dropFiles = false});
   final AppState state;
   final FileIo files;
+
+  /// Files can be dragged onto the window (Windows; off in tests, which have no drop support)
+  final bool dropFiles;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  AppState get state => widget.state;
+  FileIo get files => widget.files;
+  bool _dragging = false;
 
   void _message(BuildContext context, String text, {bool error = false}) {
     ScaffoldMessenger.of(context)
@@ -48,13 +78,72 @@ class HomeScreen extends StatelessWidget {
     if (m != null) state.open(f, m);
   }
 
+  /// Before the survey is closed or replaced: corrected codes not saved yet are offered for saving.
+  /// False: stay.
+  Future<bool> _leave(BuildContext context) async {
+    final n = state.changedCodes;
+    if (n == 0) return true;
+    final r = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$n corrected code${n == 1 ? '' : 's'} not saved'),
+        content: const SizedBox(
+          width: 420,
+          child: Text(
+            'Save the points with their corrected codes as a CSV, so the corrections aren\'t lost? '
+            'A saved DXF already has them in the drawing.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, 'stay'), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, 'drop'), child: const Text('Don\'t save')),
+          FilledButton(onPressed: () => Navigator.pop(context, 'save'), child: const Text('Save points…')),
+        ],
+      ),
+    );
+    if (r == 'drop') return true;
+    if (r == 'save' && context.mounted) return _savePoints(context);
+    return false;
+  }
+
+  Future<void> _close(BuildContext context) async {
+    if (await _leave(context)) state.close();
+  }
+
+  Future<bool> _savePoints(BuildContext context) async {
+    final path = await files.save(
+      suggestedName: state.csvName,
+      label: 'Survey points (CSV)',
+      extensions: const ['csv'],
+      bytes: utf8.encode(state.pointsCsv()),
+    );
+    if (path == null) return false;
+    if (context.mounted) _message(context, 'Points saved to $path with their corrected codes.');
+    return true;
+  }
+
+  Future<void> _dropped(BuildContext context, DropDoneDetails d) async {
+    setState(() => _dragging = false);
+    if (d.files.isEmpty) return;
+    final f = d.files.first;
+    if (!surveyExtensions.contains(f.name.split('.').last.toLowerCase())) {
+      _message(context, '${f.name} isn\'t a survey file. Drop a CSV, TXT or Excel (.xlsx) file.', error: true);
+      return;
+    }
+    if (!await _leave(context) || !context.mounted) return;
+    final bytes = await f.readAsBytes();
+    if (context.mounted) await _openBytes(context, f.name, bytes);
+  }
+
   Future<void> _open(BuildContext context) async {
+    if (!await _leave(context) || !context.mounted) return;
     final picked = await files.open(label: 'Survey points', extensions: surveyExtensions);
     if (picked == null || !context.mounted) return;
     await _openBytes(context, picked.$1, picked.$2);
   }
 
   Future<void> _sample(BuildContext context) async {
+    if (!await _leave(context) || !context.mounted) return;
     final data = await rootBundle.load('assets/samples/sample-survey.csv');
     if (!context.mounted) return;
     await _openBytes(context, 'sample-survey.csv', data.buffer.asUint8List());
@@ -97,8 +186,8 @@ class HomeScreen extends StatelessWidget {
       _message(context, '${picked.$1} isn\'t an Auto Draft code list.', error: true);
       return;
     }
-    state.setLibrary(l);
-    _message(context, '${l.all.length} codes loaded from ${picked.$1}.');
+    state.setLibrary(l, label: 'code list ${picked.$1}');
+    sayDone(context, state, '${l.all.length} codes loaded from ${picked.$1}.');
   }
 
   @override
@@ -107,54 +196,112 @@ class HomeScreen extends StatelessWidget {
       listenable: state,
       builder: (context, _) {
         final d = state.drawing;
-        return CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.keyO, control: true): () => _open(context),
-            if (d != null) const SingleActivator(LogicalKeyboardKey.keyS, control: true): () => _save(context),
-          },
-          child: Focus(
-            autofocus: true,
-            child: Scaffold(
-              body: Column(
-                children: [
-                  _TopBar(
-                    state: state,
-                    onOpen: () => _open(context),
-                    onSample: () => _sample(context),
-                    onOptions: () => _options(context),
-                    onSave: () => _save(context),
-                  ),
-                  Expanded(
-                    child: d == null
-                        ? _Welcome(onOpen: () => _open(context), onSample: () => _sample(context))
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(child: DrawingView(state: state)),
-                              const VerticalDivider(width: 1),
-                              SizedBox(
-                                width: 400,
-                                child: Material(
-                                  color: Colors.white,
-                                  child: SidePanel(
-                                    state: state,
-                                    onSaveCodes: () => _saveCodes(context),
-                                    onLoadCodes: () => _loadCodes(context),
-                                  ),
-                                ),
-                              ),
-                            ],
+        Widget body = Column(
+          children: [
+            _TopBar(
+              state: state,
+              onOpen: () => _open(context),
+              onSample: () => _sample(context),
+              onOptions: () => _options(context),
+              onSave: () => _save(context),
+              onSavePoints: () => _savePoints(context),
+              onClose: () => _close(context),
+            ),
+            Expanded(
+              child: d == null
+                  ? _Welcome(onOpen: () => _open(context), onSample: () => _sample(context))
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: DrawingView(state: state, onEditPoint: (i) => editPointCode(context, state, i)),
+                        ),
+                        const VerticalDivider(width: 1),
+                        SizedBox(
+                          width: 400,
+                          child: Material(
+                            color: Colors.white,
+                            child: SidePanel(
+                              state: state,
+                              onSaveCodes: () => _saveCodes(context),
+                              onLoadCodes: () => _loadCodes(context),
+                            ),
                           ),
-                  ),
-                  if (d != null) _StatusBar(state: state, drawing: d),
-                ],
-              ),
+                        ),
+                      ],
+                    ),
+            ),
+            if (d != null) _StatusBar(state: state, drawing: d),
+          ],
+        );
+        if (widget.dropFiles) {
+          body = DropTarget(
+            onDragEntered: (_) => setState(() => _dragging = true),
+            onDragExited: (_) => setState(() => _dragging = false),
+            onDragDone: (e) => _dropped(context, e),
+            child: Stack(
+              children: [
+                body,
+                if (_dragging) const Positioned.fill(child: _DropHint()),
+              ],
+            ),
+          );
+        }
+        return Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.keyZ, control: true): _UndoIntent(),
+            SingleActivator(LogicalKeyboardKey.keyY, control: true): _RedoIntent(),
+            SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): _RedoIntent(),
+          },
+          child: Actions(
+            actions: {
+              _UndoIntent: _AppAction<_UndoIntent>(state.undo),
+              _RedoIntent: _AppAction<_RedoIntent>(state.redo),
+            },
+            child: CallbackShortcuts(
+              bindings: {
+                const SingleActivator(LogicalKeyboardKey.keyO, control: true): () => _open(context),
+                if (d != null) const SingleActivator(LogicalKeyboardKey.keyS, control: true): () => _save(context),
+              },
+              child: Focus(autofocus: true, child: Scaffold(body: body)),
             ),
           ),
         );
       },
     );
   }
+}
+
+class _DropHint extends StatelessWidget {
+  const _DropHint();
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: Container(
+      color: BrandColors.navy.withValues(alpha: 0.82),
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+        decoration: BoxDecoration(
+          border: Border.all(color: BrandColors.gold, width: 2),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.file_download_outlined, color: BrandColors.goldLight, size: 46),
+            SizedBox(height: 12),
+            Text(
+              'Drop the survey file to draw it',
+              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 6),
+            Text('CSV, TXT or Excel (.xlsx)', style: TextStyle(color: Color(0xFFB8C4D8))),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _TopBar extends StatelessWidget {
@@ -164,9 +311,11 @@ class _TopBar extends StatelessWidget {
     required this.onSample,
     required this.onOptions,
     required this.onSave,
+    required this.onSavePoints,
+    required this.onClose,
   });
   final AppState state;
-  final VoidCallback onOpen, onSample, onOptions, onSave;
+  final VoidCallback onOpen, onSample, onOptions, onSave, onSavePoints, onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -205,8 +354,54 @@ class _TopBar extends StatelessWidget {
           _BarButton(Icons.folder_open_outlined, 'Open', 'Open a survey file (Ctrl+O)', onOpen),
           if (!has) _BarButton(Icons.science_outlined, 'Sample', 'Try the sample survey', onSample),
           if (has) ...[
+            IconButton(
+              tooltip: state.canUndo ? 'Undo: ${state.undoLabel} (Ctrl+Z)' : 'Nothing to undo',
+              color: Colors.white,
+              disabledColor: Colors.white30,
+              onPressed: state.canUndo ? state.undo : null,
+              icon: const Icon(Icons.undo),
+            ),
+            IconButton(
+              tooltip: state.canRedo ? 'Redo: ${state.redoLabel} (Ctrl+Y)' : 'Nothing to redo',
+              color: Colors.white,
+              disabledColor: Colors.white30,
+              onPressed: state.canRedo ? state.redo : null,
+              icon: const Icon(Icons.redo),
+            ),
+            const SizedBox(width: 4),
             _BarButton(Icons.tune, '1:${state.options.scale}', 'Drawing settings: scale, text, labels', onOptions),
-            _BarButton(Icons.close, 'Close', 'Close this survey', state.close),
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onSelected: (v) => switch (v) {
+                'points' => onSavePoints(),
+                'revert' => state.revertCodes(),
+                _ => onClose(),
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'points',
+                  child: ListTile(
+                    leading: const Icon(Icons.table_view_outlined),
+                    title: const Text('Save points (CSV)'),
+                    subtitle: Text(
+                      state.changedCodes == 0
+                          ? 'Point, E, N, Z, code'
+                          : 'With ${state.changedCodes} corrected code${state.changedCodes == 1 ? '' : 's'}',
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'revert',
+                  enabled: state.changedCodes > 0,
+                  child: const ListTile(leading: Icon(Icons.restore), title: Text('Back to the file\'s codes')),
+                ),
+                const PopupMenuItem(
+                  value: 'close',
+                  child: ListTile(leading: Icon(Icons.close), title: Text('Close this survey')),
+                ),
+              ],
+            ),
             const SizedBox(width: 8),
             FilledButton.icon(
               style: goldButton(),

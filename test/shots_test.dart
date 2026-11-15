@@ -94,8 +94,30 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Problems'));
     await t.pumpAndSettle();
-    await t.tap(find.textContaining('Fence FN1').first);
+    await t.tap(find.textContaining('Code XX').first);
     await shot('7-problems');
+
+    // phase 2: add the unknown code from its problem
+    await t.tap(find.text('Add XX to the code list'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const ValueKey('code-name')), 'Boundary pillar');
+    await t.pumpAndSettle();
+    await shot('8-code-editor');
+    await t.tap(find.text('Add code'));
+    await t.pumpAndSettle();
+
+    // a point clicked on the drawing: its card
+    h.state.showPoint(h.state.points[7]);
+    await t.pumpAndSettle();
+    h.state.pick(7);
+    await shot('9-picked-point');
+
+    // the More menu
+    h.state.setCode(6, 'TR NEEM');
+    await t.pumpAndSettle();
+    t.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).hideCurrentSnackBar();
+    await t.tap(find.byTooltip('More'));
+    await shot('10-more-menu');
     debugDisableShadows = true; // as the test framework expects it back
   });
 }
