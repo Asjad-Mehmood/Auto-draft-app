@@ -53,6 +53,8 @@ class _CodeDialogState extends State<_CodeDialog> {
   late String _lineType = widget.existing?.lineType ?? 'CONTINUOUS';
   late String _symbol = (widget.existing?.symbol.isNotEmpty ?? false) ? widget.existing!.symbol : 'AD_SPOT';
   late bool _levels = widget.existing?.levels ?? true;
+  late bool _breakline = widget.existing?.breakline ?? false;
+  late bool _surface = widget.existing?.surface ?? true;
 
   /// The layer follows the name until it is typed by hand
   late bool _layerByHand = widget.existing != null;
@@ -98,6 +100,8 @@ class _CodeDialogState extends State<_CodeDialog> {
     lineType: _kind == CodeKind.line ? _lineType : 'CONTINUOUS',
     symbol: _kind == CodeKind.point ? _symbol : '',
     levels: _levels,
+    breakline: _kind == CodeKind.line && _breakline,
+    surface: _surface,
   );
 
   @override
@@ -265,6 +269,21 @@ class _CodeDialogState extends State<_CodeDialog> {
                 value: _levels,
                 onChanged: (v) => setState(() => _levels = v),
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('On the ground (used for contours)'),
+                subtitle: const Text('Off for roofs, wires and pipes'),
+                value: _surface,
+                onChanged: (v) => setState(() => _surface = v),
+              ),
+              if (_kind == CodeKind.line)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Breakline'),
+                  subtitle: const Text('The ground changes along it (road edge, bank, drain): contours bend here'),
+                  value: _breakline,
+                  onChanged: (v) => setState(() => _breakline = v),
+                ),
               // how it will look
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

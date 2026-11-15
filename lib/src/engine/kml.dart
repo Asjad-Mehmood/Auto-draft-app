@@ -78,6 +78,27 @@ String writeKml(Drawing d, {required int zone, bool north = true, String title =
     b.writeln('  </Folder>');
   }
 
+  // contours, in their own colours
+  if (d.contours.isNotEmpty) {
+    for (final (name, layer) in [('minor', Layers.contourMinor), ('major', Layers.contourMajor)]) {
+      final (rr, gg, bb) = aciRgb(layer.color);
+      String h(int v) => v.toRadixString(16).padLeft(2, '0');
+      b.writeln(
+        '  <Style id="contour_$name"><LineStyle><color>ff${h(bb)}${h(gg)}${h(rr)}</color>'
+        '<width>${name == 'major' ? 2 : 1}</width></LineStyle></Style>',
+      );
+    }
+    b.writeln('  <Folder><name>Contours, every ${d.contourInterval} m</name>');
+    for (final c in d.contours) {
+      final coords = [...c.vertices.map(ll), if (c.closed) ll(c.vertices.first)].join(' ');
+      b.writeln(
+        '    <Placemark><name>${c.level.toStringAsFixed(2)}</name><styleUrl>#contour_${c.major ? 'major' : 'minor'}</styleUrl>'
+        '<LineString><tessellate>1</tessellate><coordinates>$coords</coordinates></LineString></Placemark>',
+      );
+    }
+    b.writeln('  </Folder>');
+  }
+
   // every survey point, off at first (it can be many)
   b.writeln('  <Folder><name>All survey points (${d.points.length})</name><visibility>0</visibility>');
   for (final p in d.points) {

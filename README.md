@@ -26,6 +26,8 @@ levels written, every feature on its own layer.</p>
    legend from the codes used, north arrow, scale bar, notes, title block with the firm, title, date and
    drawing number), in the DXF and as a PDF at scale.
 5. **Google Earth**: the drawing as KML in its UTM zone.
+6. **Contours**: from the ground surface (TIN), bending at breaklines (road edges, banks, drains), every
+   5th one labelled; in the DXF at their levels, in the PDF and the KML.
 
 <p align="center"><img src="docs/screens/3-drawing.png" width="760" alt="Auto Draft with the sample survey drawn"></p>
 

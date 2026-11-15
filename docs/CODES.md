@@ -30,51 +30,51 @@ a smooth curve through every one.
 
 ## Line codes
 
-| Code | Feature | Layer | Colour | Line type |
-|---|---|---|---|---|
-| `BB` | Bottom of bank (toe) | `TOE_OF_BANK` | 2 | dashed |
-| `BLD` | Building | `BUILDING` | 140 | continuous |
-| `CL` | Centre line | `CENTRE_LINE` | 6 | center |
-| `CV` | Culvert / bridge | `CULVERT` | 150 | continuous |
-| `DR` | Drain | `DRAIN` | 4 | continuous |
-| `EP` | Edge of pavement | `PAVEMENT_EDGE` | 1 | continuous |
-| `FN` | Fence | `FENCE` | 3 | dashed |
-| `FP` | Footpath | `FOOTPATH` | 8 | continuous |
-| `GT` | Gate | `GATE` | 30 | continuous |
-| `HT` | Overhead power line | `POWER_LINE` | 1 | dashdot |
-| `KB` | Kerb | `KERB` | 30 | continuous |
-| `NL` | Nala / canal edge | `NALA` | 4 | continuous |
-| `PB` | Plot boundary | `PLOT_BOUNDARY` | 6 | dashdot |
-| `PIPE` | Pipe line | `PIPE` | 4 | hidden |
-| `RE` | Road edge | `ROAD_EDGE` | 1 | continuous |
-| `RLY` | Railway | `RAILWAY` | 8 | dashdot |
-| `SH` | Shoulder | `SHOULDER` | 40 | dashed |
-| `TB` | Top of bank | `TOP_OF_BANK` | 2 | continuous |
-| `TRK` | Track / kacha road | `TRACK` | 42 | dashed |
-| `WE` | Water edge (pond) | `WATER_EDGE` | 4 | dashed |
-| `WL` | Wall | `WALL` | 7 | continuous |
+| Code | Feature | Layer | Colour | Line type | Contours |
+|---|---|---|---|---|---|
+| `BB` | Bottom of bank (toe) | `TOE_OF_BANK` | 2 | dashed | breakline |
+| `BLD` | Building | `BUILDING` | 140 | continuous | left out (not on the ground) |
+| `CL` | Centre line | `CENTRE_LINE` | 6 | center | breakline |
+| `CV` | Culvert / bridge | `CULVERT` | 150 | continuous | points used |
+| `DR` | Drain | `DRAIN` | 4 | continuous | breakline |
+| `EP` | Edge of pavement | `PAVEMENT_EDGE` | 1 | continuous | breakline |
+| `FN` | Fence | `FENCE` | 3 | dashed | points used |
+| `FP` | Footpath | `FOOTPATH` | 8 | continuous | breakline |
+| `GT` | Gate | `GATE` | 30 | continuous | points used |
+| `HT` | Overhead power line | `POWER_LINE` | 1 | dashdot | left out (not on the ground) |
+| `KB` | Kerb | `KERB` | 30 | continuous | breakline |
+| `NL` | Nala / canal edge | `NALA` | 4 | continuous | breakline |
+| `PB` | Plot boundary | `PLOT_BOUNDARY` | 6 | dashdot | points used |
+| `PIPE` | Pipe line | `PIPE` | 4 | hidden | left out (not on the ground) |
+| `RE` | Road edge | `ROAD_EDGE` | 1 | continuous | breakline |
+| `RLY` | Railway | `RAILWAY` | 8 | dashdot | points used |
+| `SH` | Shoulder | `SHOULDER` | 40 | dashed | breakline |
+| `TB` | Top of bank | `TOP_OF_BANK` | 2 | continuous | breakline |
+| `TRK` | Track / kacha road | `TRACK` | 42 | dashed | breakline |
+| `WE` | Water edge (pond) | `WATER_EDGE` | 4 | dashed | breakline |
+| `WL` | Wall | `WALL` | 7 | continuous | breakline |
 
 ## Point codes
 
-| Code | Feature | Layer | Colour | Symbol |
-|---|---|---|---|---|
-| `BM` | Benchmark | `BENCHMARK` | 6 | Benchmark |
-| `CP` | Control point / station | `CONTROL` | 6 | Control point |
-| `EPL` | Electric pole | `ELECTRIC_POLE` | 1 | Electric pole |
-| `HP` | Hand pump | `HAND_PUMP` | 4 | Hand pump |
-| `KM` | Kilometre stone | `KM_STONE` | 7 | Kilometre stone |
-| `LP` | Light pole | `LIGHT_POLE` | 2 | Light pole |
-| `MH` | Manhole | `MANHOLE` | 4 | Manhole |
-| `NGL` | Natural ground level | `SPOT_LEVEL` | 8 | Spot level |
-| `SB` | Sign board | `SIGN` | 2 | Sign board |
-| `SP` | Spot level | `SPOT_LEVEL` | 8 | Spot level |
-| `TBM` | Temporary benchmark | `BENCHMARK` | 6 | Benchmark |
-| `TF` | Transformer | `TRANSFORMER` | 1 | Transformer |
-| `TP` | Telephone pole | `TELEPHONE_POLE` | 30 | Telephone pole |
-| `TR` | Tree | `TREE` | 3 | Tree |
-| `TW` | Tubewell | `TUBEWELL` | 4 | Tubewell |
-| `VLV` | Valve | `VALVE` | 4 | Valve |
-| `WEL` | Well | `WELL` | 4 | Well |
+| Code | Feature | Layer | Colour | Symbol | Contours |
+|---|---|---|---|---|---|
+| `BM` | Benchmark | `BENCHMARK` | 6 | Benchmark | points used |
+| `CP` | Control point / station | `CONTROL` | 6 | Control point | points used |
+| `EPL` | Electric pole | `ELECTRIC_POLE` | 1 | Electric pole | points used |
+| `HP` | Hand pump | `HAND_PUMP` | 4 | Hand pump | points used |
+| `KM` | Kilometre stone | `KM_STONE` | 7 | Kilometre stone | points used |
+| `LP` | Light pole | `LIGHT_POLE` | 2 | Light pole | points used |
+| `MH` | Manhole | `MANHOLE` | 4 | Manhole | points used |
+| `NGL` | Natural ground level | `SPOT_LEVEL` | 8 | Spot level | points used |
+| `SB` | Sign board | `SIGN` | 2 | Sign board | points used |
+| `SP` | Spot level | `SPOT_LEVEL` | 8 | Spot level | points used |
+| `TBM` | Temporary benchmark | `BENCHMARK` | 6 | Benchmark | points used |
+| `TF` | Transformer | `TRANSFORMER` | 1 | Transformer | points used |
+| `TP` | Telephone pole | `TELEPHONE_POLE` | 30 | Telephone pole | points used |
+| `TR` | Tree | `TREE` | 3 | Tree | points used |
+| `TW` | Tubewell | `TUBEWELL` | 4 | Tubewell | points used |
+| `VLV` | Valve | `VALVE` | 4 | Valve | points used |
+| `WEL` | Well | `WELL` | 4 | Well | points used |
 
 ## Other layers
 

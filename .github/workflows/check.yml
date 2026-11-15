@@ -62,7 +62,7 @@ jobs:
       - name: The sheet, in the DXF and as a PDF
         run: |
           sudo apt-get install -y --no-install-recommends poppler-utils > /dev/null
-          dart run tool/autodraft.dart assets/samples/sample-survey.csv sheet.dxf --pdf sheet.pdf --title "Sample survey" --firm "Auto Draft"
+          dart run tool/autodraft.dart assets/samples/sample-survey.csv sheet.dxf --pdf sheet.pdf --title "Sample survey" --firm "Auto Draft" --contours auto --tin
           python tool/check_dxf.py sheet.dxf sheet-dxf.png --expect-points 67
           pdfinfo sheet.pdf | tee pdfinfo.txt
           grep -q "Pages: *1" pdfinfo.txt

@@ -119,6 +119,22 @@ Future<Uint8List> writePdf(Drawing d, Sheet sheet, PdfFonts fonts, {String title
   g.clipPath();
   g.setLineCap(PdfLineCap.round);
   g.setLineJoin(PdfLineJoin.round);
+  // the surface's triangles (when shown) and the contours, under everything else
+  final tin = d.tin;
+  if (tin != null && d.options.showTin) {
+    g.setStrokeColor(PdfColors.grey400);
+    g.setLineWidth(0.07 * pt);
+    for (final (a, b, c) in tin.triangles) {
+      polyline([tin.points[a], tin.points[b], tin.points[c]], closed: true);
+      g.strokePath();
+    }
+  }
+  for (final c in d.contours) {
+    g.setStrokeColor(_paper(c.major ? Layers.contourMajor.color : Layers.contourMinor.color));
+    g.setLineWidth((c.major ? 0.3 : 0.13) * pt);
+    polyline(c.vertices, closed: c.closed);
+    g.strokePath();
+  }
   for (final l in d.lines) {
     g.setStrokeColor(_paper(layerColor[l.layer] ?? 7));
     g.setLineWidth(0.25 * pt);
@@ -139,7 +155,7 @@ Future<Uint8List> writePdf(Drawing d, Sheet sheet, PdfFonts fonts, {String title
   }
   for (final t in d.texts) {
     g.setFillColor(_paper(layerColor[t.layer] ?? 7));
-    text(t.text, t.at, t.height);
+    text(t.text, t.at, t.height, rotation: t.rotation, align: t.centered ? SheetAlign.center : SheetAlign.left);
   }
   g.restoreContext();
 

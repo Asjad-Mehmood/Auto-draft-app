@@ -8,9 +8,11 @@ import 'dart:math' as math;
 
 import 'code_parser.dart';
 import 'codes.dart';
+import 'contours.dart';
 import 'drawing.dart';
 import 'geometry.dart';
 import 'point.dart';
+import 'tin.dart';
 
 Drawing buildDrawing(List<SurveyPoint> points, CodeLibrary library, DraftOptions options) =>
     _Builder(points, library, options).build();
@@ -49,6 +51,12 @@ class _Builder {
   final _stray = <SurveyPoint>[];
   final _remarks = <String, List<SurveyPoint>>{};
 
+  /// Points whose code is off the ground (a roof, a wire): left out of the surface
+  final _offGround = <String>{};
+  var _contours = const <Contour>[];
+  Tin? _tin;
+  var _interval = 0.0;
+
   Drawing build() {
     for (final p in points) {
       _point(p);
@@ -57,6 +65,7 @@ class _Builder {
       _finish(key);
     }
     _checks();
+    if (options.contours) _surface();
     return Drawing(
       points: points,
       lines: lines,
@@ -65,13 +74,80 @@ class _Builder {
       layers: _layers(),
       problems: problems..sort((a, b) => a.severity.index.compareTo(b.severity.index)),
       options: options,
+      contours: _contours,
+      tin: _tin,
+      contourInterval: _interval,
     );
+  }
+
+  /// The ground surface from the points with levels (not roofs or wires) and the breaklines, then
+  /// the contours and their labels
+  void _surface() {
+    final pts = <Vertex>[];
+    final pairs = <(int, int)>[];
+    for (final p in points) {
+      if (p.z != null && !_offGround.contains(p.id)) pts.add(Vertex(p.e, p.n, p.z!));
+    }
+    final level = {for (final p in points) p.id: p.z};
+    for (final l in lines.where((l) => l.feature.breakline && l.feature.surface)) {
+      if (l.pointIds.any((id) => level[id] == null)) continue; // a point without a level: not a breakline
+      final first = pts.length;
+      pts.addAll(l.vertices);
+      for (var i = first + 1; i < pts.length; i++) {
+        pairs.add((i - 1, i));
+      }
+      if (l.closed && l.vertices.length > 2) pairs.add((pts.length - 1, first));
+    }
+    final tin = buildTin(pts, breaklines: pairs);
+    if (tin.triangles.isEmpty) {
+      problems.add(
+        const Problem(
+          Severity.warning,
+          'No contours: too few points with levels',
+          'Contours need at least three points with levels on the ground, not all in one line.',
+        ),
+      );
+      return;
+    }
+    _tin = tin;
+    var lo = double.infinity, hi = -double.infinity;
+    for (final v in tin.points) {
+      lo = math.min(lo, v.z);
+      hi = math.max(hi, v.z);
+    }
+    _interval = options.contourInterval > 0 ? options.contourInterval : autoInterval(hi - lo);
+    _contours = traceContours(tin, _interval, majorEvery: options.majorEvery);
+    final decimals = intervalDecimals(_interval * options.majorEvery);
+    for (final lab in labelContours(_contours, 0.1 * options.scale, decimals)) {
+      texts.add(
+        DText(
+          layer: Layers.contourLabels.name,
+          kind: TextKind.contour,
+          text: lab.text,
+          at: lab.at,
+          height: options.textHeight * 0.9,
+          rotation: lab.rotation,
+          centered: true,
+        ),
+      );
+    }
+    if (tin.unrecovered > 0) {
+      problems.add(
+        Problem(
+          Severity.info,
+          '${_count(tin.unrecovered, 'breakline piece')} not followed by the contours',
+          'Where two breaklines cross without a shared point, the surface can follow only one of them. '
+              'Check the contours there.',
+        ),
+      );
+    }
   }
 
   Vertex _v(SurveyPoint p) => Vertex(p.e, p.n, p.z ?? 0);
 
   void _point(SurveyPoint p) {
     final parsed = parseCode(p.code, library);
+    if (parsed.refs.any((r) => !r.feature.surface)) _offGround.add(p.id);
     if (parsed.strayControls.isNotEmpty) _stray.add(p);
     for (final r in parsed.remarks) {
       (_remarks[r] ??= []).add(p);
@@ -446,6 +522,10 @@ class _Builder {
     if (texts.any((t) => t.kind == TextKind.number)) out[Layers.numbers.name] = Layers.numbers;
     if (texts.any((t) => t.kind == TextKind.code)) out[Layers.codes.name] = Layers.codes;
     if (_unknown.isNotEmpty) out[Layers.unknown.name] = Layers.unknown;
+    if (_contours.any((c) => !c.major)) out[Layers.contourMinor.name] = Layers.contourMinor;
+    if (_contours.any((c) => c.major)) out[Layers.contourMajor.name] = Layers.contourMajor;
+    if (texts.any((t) => t.kind == TextKind.contour)) out[Layers.contourLabels.name] = Layers.contourLabels;
+    if (_tin != null && options.showTin) out[Layers.tin.name] = Layers.tin;
     return out.values.toList();
   }
 }

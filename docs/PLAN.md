@@ -44,8 +44,13 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
    zone (remembered): lines in their colours, point features as pins, every point (off at first).
    Topcon: its CSV export already opens. Written from the formats' specifications and checked against
    files made from known coordinates; to be tried with files from the firm's own instruments.
-5. **Contours.** TIN from the points, contours at any interval with index labels, breaklines from walls,
-   banks and drains; DXF and KML.
+5. **Contours (done).** The ground surface (TIN): Delaunay triangulation of the points with levels,
+   leaving out codes that aren't on the ground (buildings' roofs, power lines, pipes); breaklines (road
+   edges, kerbs, banks, drains, walls…) made edges of the TIN so contours bend at them; long triangles on
+   the outside trimmed. Contours at a chosen or automatic interval, every 5th major and labelled along
+   its line; in the DXF at their elevation (Civil 3D reads them), the TIN as 3D faces when shown; in the
+   PDF, on screen, in the legend and in the KML. Each code says whether it is on the ground and whether
+   it is a breakline (code editor).
 6. **Launch.**
    - First release `v0.1.0` (owner's go-ahead): `AutoDraft-Setup.exe` + `latest.json` on GitHub Releases.
    - **Survey Toolkit:** add Auto Draft to the website's Toolkit feed (`lib/toolkit/feed.ts` in the website

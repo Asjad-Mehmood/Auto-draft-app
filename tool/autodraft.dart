@@ -36,6 +36,12 @@ Future<void> main(List<String> args) async {
         // --sheet auto | A4 … A0
         final p = args[++i].toLowerCase();
         sheet = (sheet ?? const SheetInfo()).copyWith(paper: () => Paper.values.where((x) => x.name == p).firstOrNull);
+      case '--contours':
+        // --contours auto | 0.5
+        final v = args[++i];
+        options = options.copyWith(contours: true, contourInterval: v == 'auto' ? 0 : double.parse(v));
+      case '--tin':
+        options = options.copyWith(showTin: true);
       case '--kml':
         kmlPath = args[++i];
       case '--zone':
@@ -62,7 +68,7 @@ Future<void> main(List<String> args) async {
   }
   if (files.length != 2) {
     stderr.writeln(
-      'usage: dart run tool/autodraft.dart survey.csv|.txt|.xlsx|.gsi|.sdr|.raw drawing.dxf [--scale 500] [--3d] [--numbers] [--codes] [--sheet auto|a4..a0] [--pdf out.pdf] [--kml out.kml --zone 43] [--title T] [--firm F]',
+      'usage: dart run tool/autodraft.dart survey.csv|.txt|.xlsx|.gsi|.sdr|.raw drawing.dxf [--scale 500] [--3d] [--numbers] [--codes] [--sheet auto|a4..a0] [--pdf out.pdf] [--kml out.kml --zone 43] [--contours auto|0.5] [--tin] [--title T] [--firm F]',
     );
     exit(2);
   }
@@ -104,6 +110,11 @@ Future<void> main(List<String> args) async {
     '${drawing.texts.length} texts, ${drawing.layers.length} layers -> ${files[1]}',
   );
   stdout.writeln('columns: $columns');
+  if (drawing.tin != null) {
+    stdout.writeln(
+      'surface: ${drawing.tin!.triangles.length} triangles; ${drawing.contours.length} contours every ${drawing.contourInterval} m',
+    );
+  }
   for (final (line, why) in read.skipped) {
     stdout.writeln('skipped line $line: $why');
   }

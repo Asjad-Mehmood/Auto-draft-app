@@ -155,6 +155,16 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Save KML (Google Earth)'));
     await shot('14-kml');
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+
+    // phase 5: contours on the sample
+    h.state.setOptions(h.state.options.copyWith(contours: true, contourInterval: 0.1));
+    await shot('15-contours');
+    h.state.setOptions(h.state.options.copyWith(showTin: true));
+    await t.tap(find.byTooltip('Zoom in'));
+    await t.pumpAndSettle();
+    await shot('16-tin');
     debugDisableShadows = true; // as the test framework expects it back
   });
 }
