@@ -62,6 +62,14 @@ void main() {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
     await shot('1-start');
 
+    // the sign-in, as a new user sees it first
+    final out = Harness(signedIn: false);
+    await t.pumpWidget(RepaintBoundary(key: key, child: out.app));
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await shot('0-sign-in');
+    await t.pumpWidget(RepaintBoundary(key: key, child: h.app));
+    await t.pumpAndSettle();
+
     await t.tap(find.text('Try the sample survey'));
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
     await shot('2-columns');

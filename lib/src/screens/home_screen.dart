@@ -6,6 +6,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../account/account.dart';
 import '../brand.dart';
 import '../engine/codes.dart';
 import '../engine/drawing.dart';
@@ -41,9 +42,16 @@ class _RedoIntent extends Intent {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.state, required this.files, this.dropFiles = false});
+  const HomeScreen({
+    super.key,
+    required this.state,
+    required this.files,
+    required this.account,
+    this.dropFiles = false,
+  });
   final AppState state;
   final FileIo files;
+  final Account account;
 
   /// Files can be dragged onto the window (Windows; off in tests, which have no drop support)
   final bool dropFiles;
@@ -154,12 +162,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _save(BuildContext context) async {
+    final bytes = ascii.encode(state.dxf());
     final path = await files.save(
       suggestedName: state.dxfName,
       label: 'AutoCAD drawing (DXF)',
       extensions: const ['dxf'],
-      bytes: ascii.encode(state.dxf()),
+      bytes: bytes,
     );
+    if (path != null) _report('Saved DXF', 'DXF', state.dxfName, size: bytes.length);
     if (path != null && context.mounted) {
       _message(context, 'Saved $path. Open it in AutoCAD, BricsCAD or any CAD program.');
     }
@@ -177,6 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     final bytes = await state.pdf(fonts);
     final path = await files.save(suggestedName: state.pdfName, label: 'PDF', extensions: const ['pdf'], bytes: bytes);
+    if (path != null) _report('Saved PDF', 'PDF', state.pdfName, size: bytes.length);
     if (path != null && context.mounted) {
       final s = state.sheet!;
       _message(
@@ -190,13 +201,29 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _saveKml(BuildContext context) async {
     final z = await showKmlDialog(context, state.kmlZone, state.kmlNorth);
     if (z == null || !context.mounted) return;
+    final bytes = utf8.encode(state.kml(zone: z.$1, north: z.$2));
     final path = await files.save(
       suggestedName: state.kmlName,
       label: 'Google Earth (KML)',
       extensions: const ['kml'],
-      bytes: utf8.encode(state.kml(zone: z.$1, north: z.$2)),
+      bytes: bytes,
     );
+    if (path != null) _report('Saved KML', 'KML', state.kmlName, size: bytes.length);
     if (path != null && context.mounted) _message(context, 'Saved $path. Open it in Google Earth.');
+  }
+
+  /// Tells the website a drawing was saved (Admin's activity): its name, size and counts only
+  void _report(String title, String format, String name, {int size = 0}) {
+    final d = state.drawing;
+    if (d == null) return;
+    widget.account.report(
+      title: title,
+      format: format,
+      fileName: name,
+      fileSize: size,
+      points: d.points.length,
+      lines: d.lines.length,
+    );
   }
 
   Future<void> _options(BuildContext context) async {
@@ -238,6 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _TopBar(
               state: state,
+              account: widget.account,
               onOpen: () => _open(context),
               onSample: () => _sample(context),
               onOptions: () => _options(context),
@@ -348,6 +376,7 @@ class _DropHint extends StatelessWidget {
 class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.state,
+    required this.account,
     required this.onOpen,
     required this.onSample,
     required this.onOptions,
@@ -359,6 +388,7 @@ class _TopBar extends StatelessWidget {
     required this.onClose,
   });
   final AppState state;
+  final Account account;
   final VoidCallback onOpen, onSample, onOptions, onSave, onSavePoints, onClose, onSheet, onSavePdf, onSaveKml;
 
   @override
@@ -428,6 +458,7 @@ class _TopBar extends StatelessWidget {
                 'pdf' => onSavePdf(),
                 'kml' => onSaveKml(),
                 'revert' => state.revertCodes(),
+                'signout' => account.signOut(),
                 _ => onClose(),
               },
               itemBuilder: (context) => [
@@ -467,6 +498,15 @@ class _TopBar extends StatelessWidget {
                 const PopupMenuItem(
                   value: 'close',
                   child: ListTile(leading: Icon(Icons.close), title: Text('Close this survey')),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'signout',
+                  child: ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text('Sign out'),
+                    subtitle: Text(account.user?.display ?? ''),
+                  ),
                 ),
               ],
             ),

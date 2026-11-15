@@ -58,7 +58,10 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
      installs and updates it like the other tools. Toolkit app: its icon and description.
    - **Website:** product page `/auto-draft` (what it does, screenshots, the code guide, download with the
      "Your download is starting" notice), in the menu, Downloads and the sitemap; reviews.
-   - Sign-in with the website account, as the other programs, so downloads and use show in Admin.
+   - Sign-in with the website account, as the other programs (done): email and password with the
+     emailed code, or the browser (Google); remembered on the PC, offline too. Every call names the
+     app (X-App-Name: auto-draft) so Admin counts its use; a saved DXF, PDF or KML is reported with
+     its name, size and point and line counts only. The surveys themselves never leave the PC.
 
 ## How it is checked
 
