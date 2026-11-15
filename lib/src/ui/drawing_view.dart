@@ -13,10 +13,15 @@ import '../engine/point.dart';
 import '../engine/symbols.dart';
 import '../state/app_state.dart';
 import 'aci.dart';
+import 'symbol_icon.dart';
+import 'theme.dart';
 
 class DrawingView extends StatefulWidget {
-  const DrawingView({super.key, required this.state});
+  const DrawingView({super.key, required this.state, this.onEditPoint});
   final AppState state;
+
+  /// "Change code" on the picked point's card
+  final void Function(int index)? onEditPoint;
 
   @override
   State<DrawingView> createState() => _DrawingViewState();
@@ -94,6 +99,22 @@ class _DrawingViewState extends State<DrawingView> {
     });
   }
 
+  /// The point nearest a click, within 14 pixels; a click away from every point clears the pick
+  void _pickAt(Offset at) {
+    final pts = widget.state.points;
+    if (_bounds == null) return;
+    int? best;
+    var bestD = 14.0 * 14.0;
+    for (var i = 0; i < pts.length; i++) {
+      final d2 = (_toLocal(Vertex(pts[i].e, pts[i].n)) - at).distanceSquared;
+      if (d2 <= bestD) {
+        bestD = d2;
+        best = i;
+      }
+    }
+    widget.state.pick(best);
+  }
+
   @override
   Widget build(BuildContext context) {
     final d = widget.state.drawing;
@@ -123,13 +144,21 @@ class _DrawingViewState extends State<DrawingView> {
                   child: GestureDetector(
                     onPanUpdate: (e) => setState(() => _pan += e.delta),
                     onDoubleTap: () => setState(_fit),
+                    onTapUp: (e) => _pickAt(e.localPosition),
                     child: MouseRegion(
                       cursor: SystemMouseCursors.precise,
                       onExit: (_) => setState(() => _pointer = null),
                       child: CustomPaint(
                         painter: d == null || _bounds == null
                             ? null
-                            : _Painter(d, widget.state.hiddenLayers, _toLocal, _zoom, widget.state.focus.value),
+                            : _Painter(
+                                d,
+                                widget.state.hiddenLayers,
+                                _toLocal,
+                                _zoom,
+                                widget.state.focus.value,
+                                widget.state.picked,
+                              ),
                         child: const SizedBox.expand(),
                       ),
                     ),
@@ -158,6 +187,16 @@ class _DrawingViewState extends State<DrawingView> {
                   ],
                 ),
               ),
+              if (widget.state.picked != null && widget.state.picked! < widget.state.points.length)
+                Positioned(
+                  left: 12,
+                  bottom: 34,
+                  child: _PointCard(
+                    state: widget.state,
+                    index: widget.state.picked!,
+                    onEdit: widget.onEditPoint == null ? null : () => widget.onEditPoint!(widget.state.picked!),
+                  ),
+                ),
               if (ground != null)
                 Positioned(
                   left: 12,
@@ -199,13 +238,81 @@ class _ZoomButton extends StatelessWidget {
   );
 }
 
+class _PointCard extends StatelessWidget {
+  const _PointCard({required this.state, required this.index, this.onEdit});
+  final AppState state;
+  final int index;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = state.points[index];
+    final was = state.fileCodeOf(index);
+    const label = TextStyle(color: Color(0xFF8FA0BC), fontSize: 11.5);
+    final value = mono.copyWith(color: Colors.white, fontSize: 12.5);
+    return Material(
+      color: const Color(0xF2121D31),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFF2A3B57)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Point ${p.id}',
+                  style: const TextStyle(color: BrandColors.goldLight, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Code ', style: label),
+                    Text(p.code.isEmpty ? '(none)' : p.code, style: value.copyWith(fontWeight: FontWeight.w700)),
+                    if (was != null) Text('   was ${was.isEmpty ? '(none)' : was}', style: label),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'E ${p.e.toStringAsFixed(3)}  N ${p.n.toStringAsFixed(3)}  Z ${p.z?.toStringAsFixed(3) ?? '—'}',
+                  style: value,
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            if (onEdit != null)
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: BrandColors.goldLight),
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 17),
+                label: const Text('Change code'),
+              ),
+            IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.close, size: 18, color: Color(0xFFB8C4D8)),
+              onPressed: () => state.pick(null),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Painter extends CustomPainter {
-  _Painter(this.d, this.hidden, this.toLocal, this.zoom, this.focus);
+  _Painter(this.d, this.hidden, this.toLocal, this.zoom, this.focus, this.picked);
   final Drawing d;
   final Set<String> hidden;
   final Offset Function(Vertex) toLocal;
   final double zoom;
   final FocusRequest? focus;
+  final int? picked;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -241,7 +348,7 @@ class _Painter extends CustomPainter {
       if (hidden.contains(s.layer)) continue;
       final c = toLocal(s.at);
       if (!screen.inflate(symbolPx).contains(c)) continue;
-      _symbol(canvas, symbols[s.symbol] ?? symbols[unknownSymbol]!, c, symbolPx, colors[s.layer] ?? Colors.white);
+      paintSymbol(canvas, symbols[s.symbol] ?? symbols[unknownSymbol]!, c, symbolPx, colors[s.layer] ?? Colors.white);
     }
 
     // point markers
@@ -293,28 +400,18 @@ class _Painter extends CustomPainter {
       }
       if (!any) canvas.drawCircle(toLocal(f.at), 16, ring);
     }
-  }
 
-  void _symbol(Canvas canvas, SymbolDef def, Offset c, double px, Color color) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3;
-    Offset at(double x, double y) => c + Offset(x * px, -y * px);
-    for (final part in def.parts) {
-      switch (part) {
-        case SLine(:final x1, :final y1, :final x2, :final y2):
-          canvas.drawLine(at(x1, y1), at(x2, y2), paint);
-        case SCircle(:final x, :final y, :final r):
-          canvas.drawCircle(at(x, y), r * px, paint);
-        case SPoly(:final xy, :final closed):
-          final path = Path()..moveTo(at(xy[0], xy[1]).dx, at(xy[0], xy[1]).dy);
-          for (var i = 2; i + 1 < xy.length; i += 2) {
-            final p = at(xy[i], xy[i + 1]);
-            path.lineTo(p.dx, p.dy);
-          }
-          if (closed) path.close();
-          canvas.drawPath(path, paint);
+    // the point clicked: a gold cross-hair
+    final k = picked;
+    if (k != null && k < d.points.length) {
+      final c = toLocal(Vertex(d.points[k].e, d.points[k].n));
+      final gold = Paint()
+        ..color = BrandColors.goldLight
+        ..strokeWidth = 1.6
+        ..style = PaintingStyle.stroke;
+      canvas.drawCircle(c, 9, gold);
+      for (final dir in const [Offset(1, 0), Offset(-1, 0), Offset(0, 1), Offset(0, -1)]) {
+        canvas.drawLine(c + dir * 5, c + dir * 16, gold);
       }
     }
   }

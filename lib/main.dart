@@ -8,5 +8,5 @@ import 'src/state/store.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = await Store.open();
-  runApp(AutoDraftApp(state: AppState(store), files: DialogFileIo(), checkForUpdates: true));
+  runApp(AutoDraftApp(state: AppState(store), files: DialogFileIo(), checkForUpdates: true, dropFiles: true));
 }

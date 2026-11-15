@@ -1,5 +1,8 @@
+import 'package:auto_draft/src/engine/codes.dart';
 import 'package:auto_draft/src/state/store.dart';
+import 'package:auto_draft/src/ui/drawing_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fakes.dart';
@@ -11,6 +14,7 @@ Future<void> _desktop(WidgetTester t) async {
 }
 
 void main() {
+  phase2();
   testWidgets('the sample survey: open, check the columns, draw, save the DXF', (t) async {
     await _desktop(t);
     final h = Harness();
@@ -52,10 +56,12 @@ void main() {
     expect(find.textContaining('Code XX isn\'t in the code list'), findsOneWidget);
     expect(find.textContaining('Fence FN1 has only one point'), findsOneWidget);
     expect(find.textContaining('jumps 160.0 m'), findsOneWidget);
+    await t.scrollUntilVisible(find.textContaining('at level 0.000'), 200, scrollable: find.byType(Scrollable).last);
     expect(find.textContaining('at level 0.000'), findsOneWidget);
     expect(find.textContaining('things to check'), findsOneWidget);
 
     // a problem shows its place on the drawing
+    await t.scrollUntilVisible(find.textContaining('Code XX'), -200, scrollable: find.byType(Scrollable).last);
     await t.tap(find.textContaining('Code XX').first);
     await t.pumpAndSettle();
     expect(h.state.focus.value!.pointIds, ['8']);
@@ -150,5 +156,154 @@ void main() {
     await t.pumpAndSettle();
     expect(h.state.library['TR']!.name, 'Darakht');
     expect(find.textContaining('codes loaded from team.json'), findsOneWidget);
+  });
+}
+
+Future<Harness> _withMistakes(WidgetTester t) async {
+  await _desktop(t);
+  final h = Harness();
+  h.files.queue('job-42.csv', surveyWithMistakes);
+  await t.pumpWidget(h.app);
+  await t.tap(find.text('Open a survey file'));
+  await t.pumpAndSettle();
+  await t.tap(find.text('Draw it'));
+  await t.pumpAndSettle();
+  return h;
+}
+
+void phase2() {
+  testWidgets('an unknown code is added to the list from its problem, and undone', (t) async {
+    final h = await _withMistakes(t);
+    await t.tap(find.text('Add XX to the code list'));
+    await t.pumpAndSettle();
+    expect(find.text('A new code'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'XX'), findsOneWidget);
+    await t.enterText(find.byKey(const ValueKey('code-name')), 'Boundary pillar');
+    await t.pumpAndSettle();
+    expect(find.text('layer BOUNDARY_PILLAR', findRichText: true), findsNothing); // shown in the preview line
+    await t.tap(find.text('Add code'));
+    await t.pumpAndSettle();
+    expect(h.state.library['XX']!.layer, 'BOUNDARY_PILLAR');
+    expect(find.textContaining('Code XX isn\'t in the code list'), findsNothing);
+
+    await t.tap(find.byTooltip('Undo: add code XX (Ctrl+Z)'));
+    await t.pumpAndSettle();
+    expect(h.state.library['XX'], isNull);
+    await t.tap(find.byTooltip('Redo: add code XX (Ctrl+Y)'));
+    await t.pumpAndSettle();
+    expect(h.state.library['XX'], isNotNull);
+  });
+
+  testWidgets('a code is changed on every point from its problem; Ctrl+Z undoes it', (t) async {
+    final h = await _withMistakes(t);
+    await t.tap(find.text('Change it on every point'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const ValueKey('replace-to')), 'tr');
+    await t.pumpAndSettle();
+    expect(find.text('✓ in the code list'), findsOneWidget);
+    await t.tap(find.text('Change all'));
+    await t.pumpAndSettle();
+    expect(h.state.points[7].code, 'TR');
+    expect(find.textContaining('XX changed to TR on 1 point'), findsOneWidget);
+
+    await t.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await t.sendKeyEvent(LogicalKeyboardKey.keyZ);
+    await t.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await t.pumpAndSettle();
+    expect(h.state.points[7].code, 'XX');
+  });
+
+  testWidgets('the code editor refuses a code in use or a control word', (t) async {
+    final h = await _withMistakes(t);
+    await t.ensureVisible(find.text('Codes'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Codes'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Add a code'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const ValueKey('code-code')), 'tr');
+    await t.enterText(find.byKey(const ValueKey('code-name')), 'Another tree');
+    await t.pumpAndSettle();
+    expect(find.text('TR is already Tree'), findsOneWidget);
+    await t.enterText(find.byKey(const ValueKey('code-code')), 'cls');
+    await t.pumpAndSettle();
+    expect(find.textContaining('CLS is a control word'), findsOneWidget);
+    await t.enterText(find.byKey(const ValueKey('code-code')), 'PIL');
+    await t.pumpAndSettle();
+    await t.tap(find.text('Line: joins its points'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Add code'));
+    await t.pumpAndSettle();
+    expect(h.state.library['PIL']!.kind, CodeKind.line);
+    expect(h.state.library['PIL']!.layer, 'ANOTHER_TREE');
+
+    // change an existing one, then remove it (the "added" message out of the way first)
+    t.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).hideCurrentSnackBar();
+    await t.pumpAndSettle();
+    final codesList = find.ancestor(of: find.text('Load a code list'), matching: find.byType(Scrollable)).first;
+    await t.scrollUntilVisible(find.text('Another tree'), 300, scrollable: codesList);
+    await t.ensureVisible(find.text('Another tree'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Another tree'));
+    await t.pumpAndSettle();
+    expect(find.text('Code PIL'), findsOneWidget);
+    await t.tap(find.text('Remove'));
+    await t.pumpAndSettle();
+    expect(h.state.library['PIL'], isNull);
+  });
+
+  testWidgets('a point clicked on the drawing shows its card; its code is changed there', (t) async {
+    final h = await _withMistakes(t);
+    // ask the drawing to show point 7 (the tree), then click on it
+    h.state.showPoint(h.state.points[6]);
+    await t.pumpAndSettle();
+    h.state.pick(null);
+    await t.pumpAndSettle();
+    final view = t.getRect(find.byType(DrawingView));
+    await t.tapAt(view.center);
+    await t.pump(const Duration(milliseconds: 400)); // past the double-click wait
+    await t.pumpAndSettle();
+    expect(h.state.picked, 6);
+    expect(find.text('Point 7'), findsOneWidget);
+    await t.tap(find.text('Change code'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const ValueKey('point-code')), 'TR NEEM');
+    await t.tap(find.text('Redraw'));
+    await t.pumpAndSettle();
+    expect(h.state.points[6].code, 'TR NEEM');
+    expect(find.textContaining('was TR'), findsOneWidget);
+
+    // clicking empty space clears the pick
+    await t.tapAt(view.topLeft + const Offset(30, 30));
+    await t.pump(const Duration(milliseconds: 400));
+    await t.pumpAndSettle();
+    expect(h.state.picked, isNull);
+  });
+
+  testWidgets('closing with corrected codes offers to save the points', (t) async {
+    final h = await _withMistakes(t);
+    h.state.setCode(7, 'TR');
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('More'));
+    await t.pumpAndSettle();
+    expect(find.text('With 1 corrected code'), findsOneWidget);
+    await t.tap(find.text('Close this survey'));
+    await t.pumpAndSettle();
+    expect(find.text('1 corrected code not saved'), findsOneWidget);
+    await t.tap(find.text('Save points…'));
+    await t.pumpAndSettle();
+    final csv = String.fromCharCodes(h.files.saved['job-42-corrected.csv']!);
+    expect(csv, contains('8,436230.0000,3487412.0000,214.1500,TR'));
+    expect(h.state.drawing, isNull);
+  });
+
+  testWidgets('closing without changes asks nothing', (t) async {
+    final h = await _withMistakes(t);
+    await t.tap(find.byTooltip('More'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Close this survey'));
+    await t.pumpAndSettle();
+    expect(h.state.drawing, isNull);
+    expect(find.text('From field points to a finished drawing'), findsOneWidget);
   });
 }

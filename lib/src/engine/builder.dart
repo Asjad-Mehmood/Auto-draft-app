@@ -332,6 +332,8 @@ class _Builder {
               'or correct the code: ${_ids(pts)}.',
           pointIds: [for (final p in pts) p.id],
           at: _v(pts.first),
+          kind: ProblemKind.unknownCode,
+          subject: e.key,
         ),
       );
     }
@@ -355,6 +357,8 @@ class _Builder {
           'It is neither a code in the list nor a control word, so it doesn\'t change the drawing: ${_ids(pts)}.',
           pointIds: [for (final p in pts) p.id],
           at: _v(pts.first),
+          kind: ProblemKind.remark,
+          subject: e.key,
         ),
       );
     }

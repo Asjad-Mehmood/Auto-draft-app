@@ -24,10 +24,13 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
    (38 codes); lines by code and number with `ST`, `END`, `CLS`, `RECT`, `ARC`/`EARC` and points on two
    lines; symbols; level, number and code text sized for the scale; checks (unknown codes, one-point lines,
    long jumps, duplicate numbers, points in one place, missing or zero levels, unsquare rectangles);
-   DXF R12 writer; command-line tool; sample survey; 60 tests; ezdxf check in CI.
-2. **Review (started).** Done: drawing view with zoom and pan, problem list that zooms to the place, layers
-   on/off, points list with find and code correction, drawing settings. Next: edit codes in the app
-   (name, layer, colour, symbol), undo, save the corrected points back to CSV, drag-and-drop a file.
+   DXF R12 writer; command-line tool; sample survey; ezdxf check in CI.
+2. **Review (done).** Drawing view with zoom and pan; click a point for its card (code, E N Z, change
+   code); problem list that zooms to the place, with one-click fixes for an unknown code (add it to the
+   list, or change it on every point); layers on/off; points list with find, corrected codes marked;
+   code editor (add, change, remove: code, name, line or point, layer, colour, line type or symbol, levels)
+   checked as typed; undo and redo of every change (Ctrl+Z, Ctrl+Y, 100 steps); save the corrected points
+   as CSV, and a reminder before closing with unsaved corrections; drag a file onto the window.
 3. **Print-ready.** Title block with the firm's name and logo, legend made from the codes used, grid ticks
    with coordinates, north arrow, scale bar; paper sizes A3/A1; PDF at scale.
 4. **Total station files.** Leica GSI, Sokkia SDR, Topcon and Nikon raw files straight in; KML for Google
@@ -48,6 +51,9 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
 - Engine tests: codes, lines, curves (on the circle to 1e-6 m), rectangles, every check, import formats,
   the DXF's structure (sections, every layer and block defined, ASCII only, numbers).
 - App tests: open → columns → draw → save; mistakes listed and fixed; settings remembered; layers; code
-  lists saved and loaded.
+  lists saved and loaded; quick fixes, the code editor's checks, undo/redo by button and Ctrl+Z, clicking
+  a point, saving corrected points, the reminder before closing.
+- State tests: every change undone and redone, the 100-step history, renaming and removing codes, the
+  code list remembered as undone, the points CSV (quoting, read back the same).
 - CI: the sample survey becomes a DXF that ezdxf reads and audits with no errors, flat and 3D; the Windows
   program and installer are built, installed, opened (window, screenshot) and uninstalled.

@@ -170,9 +170,25 @@ enum Severity {
   info,
 }
 
+/// What a problem is about, for the quick fixes the app offers
+enum ProblemKind { other, unknownCode, remark }
+
 class Problem {
-  const Problem(this.severity, this.title, this.detail, {this.pointIds = const [], this.at});
+  const Problem(
+    this.severity,
+    this.title,
+    this.detail, {
+    this.pointIds = const [],
+    this.at,
+    this.kind = ProblemKind.other,
+    this.subject = '',
+  });
   final Severity severity;
+
+  final ProblemKind kind;
+
+  /// The code or word it is about ("XX"), for [ProblemKind.unknownCode] and [ProblemKind.remark]
+  final String subject;
 
   /// One line: "Line RE1 has only one point"
   final String title;

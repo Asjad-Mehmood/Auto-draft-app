@@ -9,11 +9,14 @@ levels written, every feature on its own layer.</p>
 
 ## What it does
 
-1. **Open** the survey: CSV, TXT or Excel (.xlsx) with point number, easting, northing, level and code.
+1. **Open** the survey (or drag it onto the window): CSV, TXT or Excel (.xlsx) with point number, easting,
+   northing, level and code.
    The columns are guessed (header names, or the usual P, E, N, Z, Code order) and can be corrected.
 2. **Check** the drawing on screen. Anything doubtful is listed: codes not in the code list, lines with one
    point, a line that jumps far (points out of order), the same point number twice, missing or zero levels.
-   Click a problem to see it; correct a point's code from the Points list and it redraws at once.
+   Click a problem to see it. An unknown code is added to the list, or changed on every point, in one click.
+   Click a point on the drawing to see it and change its code; it redraws at once. Every change can be
+   undone (Ctrl+Z) and redone (Ctrl+Y), and the corrected points can be saved as CSV.
 3. **Save the DXF**: real (UTM) coordinates in metres, one layer per feature with its colour and line type,
    a symbol block for each point feature, level text sized for the scale (1:500, 1:1000…), optional point
    numbers and codes, flat or 3D lines. DXF R12, so AutoCAD, AutoCAD LT, Civil 3D, BricsCAD, ZWCAD, QGIS and
@@ -35,8 +38,8 @@ levels written, every feature on its own layer.</p>
 | `TR`, `MH`, `EPL` | Point codes: a symbol at the point |
 
 The standard list has 38 codes (roads, buildings, walls, fences, drains, banks, poles, trees, manholes,
-benchmarks, spot levels…). The full guide: [docs/CODES.md](docs/CODES.md). A team's own list can be saved
-and loaded as a file (Codes tab).
+benchmarks, spot levels…). The full guide: [docs/CODES.md](docs/CODES.md). Codes can be added, changed and
+removed in the Codes tab (layer, colour, line type or symbol), and a team's own list saved and loaded as a file.
 
 ## Repository
 

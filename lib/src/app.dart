@@ -9,10 +9,19 @@ import 'ui/theme.dart';
 import 'update/updater_io.dart';
 
 class AutoDraftApp extends StatefulWidget {
-  const AutoDraftApp({super.key, required this.state, required this.files, this.checkForUpdates = false});
+  const AutoDraftApp({
+    super.key,
+    required this.state,
+    required this.files,
+    this.checkForUpdates = false,
+    this.dropFiles = false,
+  });
   final AppState state;
   final FileIo files;
   final bool checkForUpdates;
+
+  /// Drag-and-drop of files onto the window (the real program; tests have no drop support)
+  final bool dropFiles;
 
   @override
   State<AutoDraftApp> createState() => _AutoDraftAppState();
@@ -38,6 +47,6 @@ class _AutoDraftAppState extends State<AutoDraftApp> {
     title: appName,
     debugShowCheckedModeBanner: false,
     theme: appTheme(),
-    home: HomeScreen(state: widget.state, files: widget.files),
+    home: HomeScreen(state: widget.state, files: widget.files, dropFiles: widget.dropFiles),
   );
 }
