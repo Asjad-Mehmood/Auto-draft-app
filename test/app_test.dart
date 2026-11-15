@@ -1,4 +1,5 @@
 import 'package:auto_draft/src/engine/codes.dart';
+import 'package:auto_draft/src/engine/sheet.dart';
 import 'package:auto_draft/src/state/store.dart';
 import 'package:auto_draft/src/ui/drawing_view.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ Future<void> _desktop(WidgetTester t) async {
 
 void main() {
   phase2();
+  phase3();
   testWidgets('the sample survey: open, check the columns, draw, save the DXF', (t) async {
     await _desktop(t);
     final h = Harness();
@@ -305,5 +307,58 @@ void phase2() {
     await t.pumpAndSettle();
     expect(h.state.drawing, isNull);
     expect(find.text('From field points to a finished drawing'), findsOneWidget);
+  });
+}
+
+void phase3() {
+  testWidgets('the sheet: title block filled in, a paper too small, fixed in one click, PDF saved', (t) async {
+    final h = await _withMistakes(t);
+    // the smallest paper that fits, on the bar: a 200 m survey at 1:500 needs A2
+    final paper = h.state.sheet!.paper;
+    expect(paper, Paper.a2);
+    expect(find.text('A2'), findsOneWidget);
+    await t.tap(find.text('A2'));
+    await t.pumpAndSettle();
+    expect(find.text('Sheet and title block'), findsOneWidget);
+    expect(find.textContaining('Fits on A2'), findsOneWidget);
+    await t.enterText(find.byKey(const ValueKey('sheet-firm')), 'Al-Noor Surveys');
+    await t.enterText(find.byKey(const ValueKey('sheet-title')), 'Job 42');
+    await t.tap(find.text('Apply'));
+    await t.pumpAndSettle();
+    expect(h.state.sheetInfo.firm, 'Al-Noor Surveys');
+    expect(h.state.sheet!.items.whereType<SheetText>().map((x) => x.text), contains('Al-Noor Surveys'));
+    expect(h.state.dxf(), contains('SHEET_FRAME'));
+
+    // A4 chosen: it doesn't fit
+    h.state.setSheetInfo(h.state.sheetInfo.copyWith(paper: () => Paper.a4));
+    await t.pumpAndSettle();
+    expect(find.textContaining('doesn\'t fit on A4'), findsOneWidget);
+    expect(find.textContaining('Doesn\'t fit A4'), findsOneWidget); // status bar
+    await t.tap(find.text('Smallest paper that fits'));
+    await t.pumpAndSettle();
+    expect(h.state.sheet!.fits, isTrue);
+    expect(h.state.sheet!.paper.index, greaterThan(Paper.a4.index));
+
+    await t.tap(find.byTooltip('More'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Save PDF'));
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await t.pumpAndSettle();
+    final pdf = h.files.saved['job-42.pdf']!;
+    expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+    expect(find.textContaining('Print it at 100 %'), findsOneWidget);
+  });
+
+  testWidgets('the sheet can be left out of the DXF', (t) async {
+    final h = await _withMistakes(t);
+    await t.tap(find.byTooltip('Sheet and title block: paper, firm, title, date'));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Show the sheet on screen and in the DXF'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Show the sheet on screen and in the DXF'));
+    await t.tap(find.text('Apply'));
+    await t.pumpAndSettle();
+    expect(h.state.showSheet, isFalse);
+    expect(h.state.dxf(), isNot(contains('SHEET_FRAME')));
   });
 }

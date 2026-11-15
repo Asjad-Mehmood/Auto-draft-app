@@ -95,7 +95,9 @@ class _Problems extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = state.drawing!;
-    if (d.problems.isEmpty && state.skipped.isEmpty) {
+    final sheet = state.sheet;
+    final misfit = sheet != null && !sheet.fits;
+    if (d.problems.isEmpty && state.skipped.isEmpty && !misfit) {
       return const _Empty(
         Icons.verified_outlined,
         'No problems found',
@@ -105,6 +107,18 @@ class _Problems extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
+        if (misfit)
+          _ProblemCard(
+            severity: Severity.warning,
+            title: 'The survey doesn\'t fit on ${sheet.label}',
+            detail: '${sheet.advice} The part outside the drawing area is cut off in the PDF.',
+            fixes: [
+              if (state.sheetInfo.paper != null)
+                ('Smallest paper that fits', () => state.setSheetInfo(state.sheetInfo.copyWith(paper: () => null))),
+              for (final s in DraftOptions.scales.where((s) => s > state.options.scale).take(1))
+                ('Scale 1:$s', () => state.setOptions(state.options.copyWith(scale: s))),
+            ],
+          ),
         if (state.skipped.isNotEmpty)
           _ProblemCard(
             severity: Severity.warning,

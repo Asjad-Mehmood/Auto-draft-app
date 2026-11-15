@@ -139,11 +139,14 @@ class DLine {
 }
 
 class DSymbol {
-  const DSymbol({required this.layer, required this.symbol, required this.at, required this.pointId});
+  const DSymbol({required this.layer, required this.symbol, required this.at, required this.pointId, this.feature});
   final String layer;
   final String symbol;
   final Vertex at;
   final String pointId;
+
+  /// The point code it shows (null for an unknown code)
+  final FeatureCode? feature;
 }
 
 enum TextKind { level, number, code }
@@ -224,8 +227,11 @@ class Drawing {
   final List<Problem> problems;
   final DraftOptions options;
 
-  Bounds? get bounds =>
-      Bounds.of([for (final p in points) Vertex(p.e, p.n, p.z ?? 0), for (final l in lines) ...l.vertices]);
+  /// The box round every point and line (worked out once)
+  late final Bounds? bounds = Bounds.of([
+    for (final p in points) Vertex(p.e, p.n, p.z ?? 0),
+    for (final l in lines) ...l.vertices,
+  ]);
 
   Layer? layer(String name) => layers.where((l) => l.name == name).firstOrNull;
 }

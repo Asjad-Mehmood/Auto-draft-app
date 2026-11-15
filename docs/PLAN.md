@@ -31,8 +31,12 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
    code editor (add, change, remove: code, name, line or point, layer, colour, line type or symbol, levels)
    checked as typed; undo and redo of every change (Ctrl+Z, Ctrl+Y, 100 steps); save the corrected points
    as CSV, and a reminder before closing with unsaved corrections; drag a file onto the window.
-3. **Print-ready.** Title block with the firm's name and logo, legend made from the codes used, grid ticks
-   with coordinates, north arrow, scale bar; paper sizes A3/A1; PDF at scale.
+3. **Print-ready (done).** The sheet round the survey: paper A4–A0, landscape or portrait, or the
+   smallest that fits at the scale (with advice when it doesn't fit, and one-click fixes); frame; coordinate
+   grid with E/N labels (every ~100 mm on paper); a panel with the legend made from the codes used, north
+   arrow, scale bar, notes and the title block (firm, title, location, client, surveyed/drawn by, date,
+   drawing no., scale, sheet). In the DXF on its own layers (it prints at scale from model space), on
+   screen, and as a vector PDF at scale. The firm, people, notes and paper are remembered.
 4. **Total station files.** Leica GSI, Sokkia SDR, Topcon and Nikon raw files straight in; KML for Google
    Earth (shared with Excel to KML).
 5. **Contours.** TIN from the points, contours at any interval with index labels, breaklines from walls,
@@ -55,5 +59,7 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
   a point, saving corrected points, the reminder before closing.
 - State tests: every change undone and redone, the 100-step history, renaming and removing codes, the
   code list remembered as undone, the points CSV (quoting, read back the same).
-- CI: the sample survey becomes a DXF that ezdxf reads and audits with no errors, flat and 3D; the Windows
+- Sheet tests: paper choice, advice, everything on the paper, grid, legend, title block, DXF and PDF.
+- CI: the sample survey becomes a DXF that ezdxf reads and audits with no errors, flat, 3D and with the
+  sheet; the PDF is one A3 page (pdfinfo) and is drawn to a picture; the Windows
   program and installer are built, installed, opened (window, screenshot) and uninstalled.

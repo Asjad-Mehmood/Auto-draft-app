@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../brand.dart';
 import '../engine/codes.dart';
 import '../engine/drawing.dart';
+import '../engine/pdf.dart';
 import '../state/app_state.dart';
 import '../state/files.dart';
 import '../ui/drawing_view.dart';
@@ -16,6 +17,7 @@ import '../ui/theme.dart';
 import 'columns_dialog.dart';
 import 'edits.dart';
 import 'options_dialog.dart';
+import 'sheet_dialog.dart';
 import 'side_panel.dart';
 
 const surveyExtensions = ['csv', 'txt', 'prn', 'xlsx', 'xls', 'asc', 'pts'];
@@ -161,6 +163,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _sheet(BuildContext context) async {
+    final i = await showSheetDialog(context, state.sheetInfo, state.drawing!);
+    if (i != null) state.setSheetInfo(i);
+  }
+
+  Future<void> _savePdf(BuildContext context) async {
+    final fonts = PdfFonts(
+      await rootBundle.load('assets/fonts/Inter_400Regular.ttf'),
+      await rootBundle.load('assets/fonts/Inter_700Bold.ttf'),
+    );
+    final bytes = await state.pdf(fonts);
+    final path = await files.save(suggestedName: state.pdfName, label: 'PDF', extensions: const ['pdf'], bytes: bytes);
+    if (path != null && context.mounted) {
+      final s = state.sheet!;
+      _message(
+        context,
+        'Saved $path: ${s.label}. Print it at 100 % (actual size) to keep the scale.'
+        '${s.fits ? '' : ' The survey doesn\'t fit the sheet: ${s.advice}'}',
+      );
+    }
+  }
+
   Future<void> _options(BuildContext context) async {
     final o = await showOptionsDialog(context, state.options);
     if (o != null) state.setOptions(o);
@@ -205,6 +229,8 @@ class _HomeScreenState extends State<HomeScreen> {
               onOptions: () => _options(context),
               onSave: () => _save(context),
               onSavePoints: () => _savePoints(context),
+              onSheet: () => _sheet(context),
+              onSavePdf: () => _savePdf(context),
               onClose: () => _close(context),
             ),
             Expanded(
@@ -312,10 +338,12 @@ class _TopBar extends StatelessWidget {
     required this.onOptions,
     required this.onSave,
     required this.onSavePoints,
+    required this.onSheet,
+    required this.onSavePdf,
     required this.onClose,
   });
   final AppState state;
-  final VoidCallback onOpen, onSample, onOptions, onSave, onSavePoints, onClose;
+  final VoidCallback onOpen, onSample, onOptions, onSave, onSavePoints, onClose, onSheet, onSavePdf;
 
   @override
   Widget build(BuildContext context) {
@@ -370,15 +398,30 @@ class _TopBar extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             _BarButton(Icons.tune, '1:${state.options.scale}', 'Drawing settings: scale, text, labels', onOptions),
+            _BarButton(
+              state.sheet?.fits == false ? Icons.warning_amber_rounded : Icons.crop_landscape,
+              state.sheet?.paper.label ?? 'Sheet',
+              'Sheet and title block: paper, firm, title, date',
+              onSheet,
+            ),
             PopupMenuButton<String>(
               tooltip: 'More',
               icon: const Icon(Icons.more_vert, color: Colors.white),
               onSelected: (v) => switch (v) {
                 'points' => onSavePoints(),
+                'pdf' => onSavePdf(),
                 'revert' => state.revertCodes(),
                 _ => onClose(),
               },
               itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'pdf',
+                  child: ListTile(
+                    leading: const Icon(Icons.picture_as_pdf_outlined),
+                    title: const Text('Save PDF'),
+                    subtitle: Text(state.sheet == null ? '' : 'The sheet, ${state.sheet!.label}'),
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'points',
                   child: ListTile(
@@ -464,6 +507,18 @@ class _StatusBar extends StatelessWidget {
           item('${d.symbols.length} symbols'),
           item('${d.layers.length} layers'),
           item('Scale 1:${d.options.scale}${d.options.lines3d ? ' · 3D lines' : ''}'),
+          if (state.sheet != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 18),
+              child: Text(
+                state.sheet!.fits ? 'Sheet ${state.sheet!.label}' : 'Doesn\'t fit ${state.sheet!.label}',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: state.sheet!.fits ? Tone.muted : Tone.warning,
+                  fontWeight: state.sheet!.fits ? null : FontWeight.w700,
+                ),
+              ),
+            ),
           const Spacer(),
           Icon(
             checks == 0 ? Icons.check_circle : Icons.warning_amber_rounded,

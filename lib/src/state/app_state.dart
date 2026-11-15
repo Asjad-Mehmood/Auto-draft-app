@@ -9,7 +9,9 @@ import '../engine/codes.dart';
 import '../engine/drawing.dart';
 import '../engine/dxf.dart';
 import '../engine/import.dart';
+import '../engine/pdf.dart';
 import '../engine/point.dart';
+import '../engine/sheet.dart';
 import 'store.dart';
 
 /// A file that was read, waiting for its columns to be confirmed
@@ -38,6 +40,7 @@ class _Step {
 class AppState extends ChangeNotifier {
   AppState(this.store) {
     options = DraftOptions.fromJson(store.readJson('options'));
+    sheetInfo = SheetInfo.fromJson(store.readJson('sheet'));
     final saved = store.read('codes');
     library = (saved == null ? null : CodeLibrary.fromJsonString(saved)) ?? CodeLibrary.defaults();
   }
@@ -45,6 +48,15 @@ class AppState extends ChangeNotifier {
   final Store store;
   late DraftOptions options;
   late CodeLibrary library;
+
+  /// The title block and paper; the firm, people, notes and paper are remembered between surveys
+  late SheetInfo sheetInfo;
+
+  /// The printed sheet around the drawing (made with every redraw)
+  Sheet? sheet;
+
+  /// The sheet is drawn on screen and in the DXF
+  bool get showSheet => sheet != null && sheetInfo.inDxf;
 
   String? fileName;
   Table? table;
@@ -132,6 +144,8 @@ class AppState extends ChangeNotifier {
     columns = m;
     final r = readPoints(f.table, m);
     points = r.points;
+    // a new survey: its own title, place, client, number and date
+    sheetInfo = sheetInfo.copyWith(title: '', location: '', client: '', drawingNo: '', date: '');
     _fileCodes = [for (final p in r.points) p.code];
     skipped = r.skipped;
     hiddenLayers.clear();
@@ -149,6 +163,7 @@ class AppState extends ChangeNotifier {
     points = const [];
     skipped = const [];
     drawing = null;
+    sheet = null;
     selectedProblem = null;
     picked = null;
     _fileCodes = const [];
@@ -156,6 +171,14 @@ class AppState extends ChangeNotifier {
     _redo.clear();
     focus.value = null;
     notifyListeners();
+  }
+
+  void setSheetInfo(SheetInfo i) {
+    // the sheet appearing, going or changing size: fit the view again
+    if (i.inDxf != sheetInfo.inDxf || i.paper != sheetInfo.paper || i.portrait != sheetInfo.portrait) fileGeneration++;
+    sheetInfo = i;
+    store.writeJson('sheet', i.toJson());
+    _rebuild();
   }
 
   void setOptions(DraftOptions o) {
@@ -268,12 +291,19 @@ class AppState extends ChangeNotifier {
 
   void _rebuild() {
     drawing = buildDrawing(points, library, options);
+    sheet = buildSheet(drawing!, sheetInfo);
     selectedProblem = null;
     notifyListeners();
   }
 
   /// The DXF file's text
-  String dxf() => writeDxf(drawing!);
+  String dxf() => writeDxf(drawing!, sheet: showSheet ? sheet : null);
+
+  /// The sheet as a PDF at scale
+  Future<Uint8List> pdf(PdfFonts fonts) => writePdf(drawing!, sheet!, fonts, title: sheetInfo.title);
+
+  /// "survey.csv" → "survey.pdf"
+  String get pdfName => dxfName.replaceFirst(RegExp(r'\.dxf$'), '.pdf');
 
   /// The points as CSV, with their corrected codes: Point,Easting,Northing,Level,Code
   String pointsCsv() {

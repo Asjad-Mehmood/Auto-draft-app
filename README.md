@@ -21,6 +21,9 @@ levels written, every feature on its own layer.</p>
    a symbol block for each point feature, level text sized for the scale (1:500, 1:1000…), optional point
    numbers and codes, flat or 3D lines. DXF R12, so AutoCAD, AutoCAD LT, Civil 3D, BricsCAD, ZWCAD, QGIS and
    Global Mapper all open it.
+4. **Print**: the sheet round the survey (paper A4–A0 or the smallest that fits, frame, coordinate grid,
+   legend from the codes used, north arrow, scale bar, notes, title block with the firm, title, date and
+   drawing number), in the DXF and as a PDF at scale.
 
 <p align="center"><img src="docs/screens/3-drawing.png" width="760" alt="Auto Draft with the sample survey drawn"></p>
 
@@ -60,6 +63,7 @@ removed in the Codes tab (layer, colour, line type or symbol), and a team's own 
 flutter pub get
 flutter test                                   # engine and app tests
 dart run tool/autodraft.dart assets/samples/sample-survey.csv sample.dxf
+dart run tool/autodraft.dart assets/samples/sample-survey.csv sheet.dxf --pdf sheet.pdf --title "Plot 42"
 python3 tool/check_dxf.py sample.dxf sample.png   # needs: pip install ezdxf matplotlib
 SHOTS_DIR=shots flutter test test/shots_test.dart # pictures of the screens
 flutter build windows --release                # on Windows

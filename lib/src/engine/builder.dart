@@ -83,7 +83,15 @@ class _Builder {
       if (ref.feature.levels) levels = true;
       if (ref.feature.kind == CodeKind.point) {
         if (!symbolPlaced) {
-          symbols.add(DSymbol(layer: ref.feature.layer, symbol: ref.feature.symbol, at: _v(p), pointId: p.id));
+          symbols.add(
+            DSymbol(
+              layer: ref.feature.layer,
+              symbol: ref.feature.symbol,
+              at: _v(p),
+              pointId: p.id,
+              feature: ref.feature,
+            ),
+          );
           symbolPlaced = true;
         }
       } else {
