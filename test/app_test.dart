@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:auto_draft/src/engine/codes.dart';
 import 'package:auto_draft/src/engine/sheet.dart';
 import 'package:auto_draft/src/state/store.dart';
@@ -17,6 +19,7 @@ Future<void> _desktop(WidgetTester t) async {
 void main() {
   phase2();
   phase3();
+  phase4();
   testWidgets('the sample survey: open, check the columns, draw, save the DXF', (t) async {
     await _desktop(t);
     final h = Harness();
@@ -360,5 +363,57 @@ void phase3() {
     await t.pumpAndSettle();
     expect(h.state.showSheet, isFalse);
     expect(h.state.dxf(), isNot(contains('SHEET_FRAME')));
+  });
+}
+
+void phase4() {
+  testWidgets('a Leica GSI file opens with what was read, and draws', (t) async {
+    await _desktop(t);
+    final h = Harness();
+    h.files.toOpen.add(('job.gsi', File('test/fixtures/sample-obs.gsi').readAsBytesSync()));
+    await t.pumpWidget(h.app);
+    await t.tap(find.text('Open a survey file'));
+    await t.pumpAndSettle();
+    expect(find.text('Leica GSI-16 file: 11 worked out from the measurements and the station.'), findsOneWidget);
+    expect(find.text('11 points read.'), findsOneWidget);
+    await t.tap(find.text('Draw it'));
+    await t.pumpAndSettle();
+    expect(h.state.points.length, 11);
+    expect(h.state.drawing!.lines.where((l) => l.feature.code == 'RE').length, 2); // RE1 and RE2
+  });
+
+  testWidgets('saved for Google Earth in the zone chosen, which is remembered', (t) async {
+    final store = Store.memory();
+    await _desktop(t);
+    final h = Harness(store: store);
+    await t.pumpWidget(h.app);
+    await t.tap(find.text('Try the sample survey'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Draw it'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('More'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Save KML (Google Earth)'));
+    await t.pumpAndSettle();
+    expect(find.text('Save for Google Earth'), findsOneWidget);
+    await t.tap(find.text('Save KML'));
+    await t.pumpAndSettle();
+    final kml = String.fromCharCodes(h.files.saved['sample-survey.kml']!);
+    expect(kml, contains('74.32803456,31.51973908,0'));
+    expect(find.textContaining('Open it in Google Earth'), findsOneWidget);
+
+    h.state.kml(zone: 42, north: true);
+    expect(Harness(store: store).state.kmlZone, 42);
+  });
+
+  testWidgets('an instrument file with nothing usable says why', (t) async {
+    await _desktop(t);
+    final h = Harness();
+    final lines = File('test/fixtures/sample-obs.gsi').readAsLinesSync().skip(1).join('\n');
+    h.files.queue('nostation.gsi', lines);
+    await t.pumpWidget(h.app);
+    await t.tap(find.text('Open a survey file'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('No points could be read from this Leica GSI-16 file'), findsOneWidget);
   });
 }

@@ -143,6 +143,18 @@ void main() {
     await t.tap(find.text('Apply'));
     await t.pumpAndSettle();
     await shot('12-sheet');
+
+    // phase 4: a Leica GSI file, measured from a station
+    h.files.toOpen.add(('job.gsi', File('test/fixtures/sample-obs.gsi').readAsBytesSync()));
+    await t.tap(find.text('Open'));
+    await t.pumpAndSettle();
+    await shot('13-gsi');
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('More'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Save KML (Google Earth)'));
+    await shot('14-kml');
     debugDisableShadows = true; // as the test framework expects it back
   });
 }

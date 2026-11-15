@@ -10,7 +10,8 @@ levels written, every feature on its own layer.</p>
 ## What it does
 
 1. **Open** the survey (or drag it onto the window): CSV, TXT or Excel (.xlsx) with point number, easting,
-   northing, level and code.
+   northing, level and code, or straight from the total station: Leica GSI (coordinates, or measurements
+   from a station), Sokkia SDR, Nikon RAW.
    The columns are guessed (header names, or the usual P, E, N, Z, Code order) and can be corrected.
 2. **Check** the drawing on screen. Anything doubtful is listed: codes not in the code list, lines with one
    point, a line that jumps far (points out of order), the same point number twice, missing or zero levels.
@@ -24,6 +25,7 @@ levels written, every feature on its own layer.</p>
 4. **Print**: the sheet round the survey (paper A4–A0 or the smallest that fits, frame, coordinate grid,
    legend from the codes used, north arrow, scale bar, notes, title block with the firm, title, date and
    drawing number), in the DXF and as a PDF at scale.
+5. **Google Earth**: the drawing as KML in its UTM zone.
 
 <p align="center"><img src="docs/screens/3-drawing.png" width="760" alt="Auto Draft with the sample survey drawn"></p>
 
