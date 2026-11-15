@@ -12,6 +12,8 @@ import 'package:auto_draft/src/engine/codes.dart';
 import 'package:auto_draft/src/engine/drawing.dart';
 import 'package:auto_draft/src/engine/dxf.dart';
 import 'package:auto_draft/src/engine/import.dart';
+import 'package:auto_draft/src/engine/instruments.dart';
+import 'package:auto_draft/src/engine/kml.dart';
 import 'package:auto_draft/src/engine/pdf.dart';
 import 'package:auto_draft/src/engine/sheet.dart';
 
@@ -20,7 +22,8 @@ Future<void> main(List<String> args) async {
   var options = const DraftOptions();
   var library = CodeLibrary.defaults();
   SheetInfo? sheet;
-  String? pdfPath;
+  String? pdfPath, kmlPath;
+  var zone = 43;
   for (var i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--scale':
@@ -33,6 +36,10 @@ Future<void> main(List<String> args) async {
         // --sheet auto | A4 … A0
         final p = args[++i].toLowerCase();
         sheet = (sheet ?? const SheetInfo()).copyWith(paper: () => Paper.values.where((x) => x.name == p).firstOrNull);
+      case '--kml':
+        kmlPath = args[++i];
+      case '--zone':
+        zone = int.parse(args[++i]);
       case '--pdf':
         pdfPath = args[++i];
         sheet ??= const SheetInfo();
@@ -55,19 +62,27 @@ Future<void> main(List<String> args) async {
   }
   if (files.length != 2) {
     stderr.writeln(
-      'usage: dart run tool/autodraft.dart survey.csv|.txt|.xlsx drawing.dxf [--scale 500] [--3d] [--numbers] [--codes] [--sheet auto|a4..a0] [--pdf out.pdf] [--title T] [--firm F]',
+      'usage: dart run tool/autodraft.dart survey.csv|.txt|.xlsx|.gsi|.sdr|.raw drawing.dxf [--scale 500] [--3d] [--numbers] [--codes] [--sheet auto|a4..a0] [--pdf out.pdf] [--kml out.kml --zone 43] [--title T] [--firm F]',
     );
     exit(2);
   }
   final input = File(files[0]);
-  final table = input.path.toLowerCase().endsWith('.xlsx')
-      ? readExcel(input.readAsBytesSync())
-      : readText(input.readAsStringSync());
-  final columns = guessColumns(table);
+  final inst = input.path.toLowerCase().endsWith('.xlsx') ? null : readInstrument(input.path, input.readAsStringSync());
+  final table =
+      inst?.table ??
+      (input.path.toLowerCase().endsWith('.xlsx')
+          ? readExcel(input.readAsBytesSync())
+          : readText(input.readAsStringSync()));
+  final columns = inst == null ? guessColumns(table) : const ColumnMap();
+  if (inst != null) stdout.writeln('${inst.format}: ${inst.notes.join('; ')}');
   final read = readPoints(table, columns);
   final drawing = buildDrawing(read.points, library, options);
   final sh = sheet == null ? null : buildSheet(drawing, sheet);
   File(files[1]).writeAsStringSync(writeDxf(drawing, sheet: sh), flush: true);
+  if (kmlPath != null) {
+    File(kmlPath).writeAsStringSync(writeKml(drawing, zone: zone, title: sheet?.title ?? ''), flush: true);
+    stdout.writeln('kml: $kmlPath (UTM zone ${zone}N)');
+  }
   if (sh != null && pdfPath != null) {
     ByteData font(String f) => ByteData.sublistView(File('assets/fonts/$f').readAsBytesSync());
     final bytes = await writePdf(

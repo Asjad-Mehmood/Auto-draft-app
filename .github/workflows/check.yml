@@ -69,6 +69,15 @@ jobs:
           grep -q "Page size: *1190.55 x 841.89 pts (A3)" pdfinfo.txt
           pdftoppm -png -r 100 -singlefile sheet.pdf sheet-pdf
 
+      # total station files in, and Google Earth out
+      - name: Instrument files and KML
+        run: |
+          for f in sample-16.gsi sample-obs.gsi sample.sdr sample.raw; do
+            dart run tool/autodraft.dart "test/fixtures/$f" "$f.dxf" --kml "$f.kml" --zone 43
+            python tool/check_dxf.py "$f.dxf"
+            python -c "import sys, xml.dom.minidom as m; d = m.parse(sys.argv[1]); n = len(d.getElementsByTagName('Placemark')); print(sys.argv[1], n, 'placemarks'); assert n > 0" "$f.kml"
+          done
+
       - name: Keep the sample drawing
         if: always()
         uses: actions/upload-artifact@v4

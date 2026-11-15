@@ -9,6 +9,8 @@ import '../engine/codes.dart';
 import '../engine/drawing.dart';
 import '../engine/dxf.dart';
 import '../engine/import.dart';
+import '../engine/instruments.dart';
+import '../engine/kml.dart';
 import '../engine/pdf.dart';
 import '../engine/point.dart';
 import '../engine/sheet.dart';
@@ -16,10 +18,16 @@ import 'store.dart';
 
 /// A file that was read, waiting for its columns to be confirmed
 class OpenedFile {
-  const OpenedFile(this.name, this.table, this.guess);
+  const OpenedFile(this.name, this.table, this.guess, {this.format = '', this.notes = const []});
   final String name;
   final Table table;
   final ColumnMap guess;
+
+  /// A total station file: "Leica GSI-16"; empty for CSV, TXT and Excel
+  final String format;
+
+  /// What the instrument reader read and skipped
+  final List<String> notes;
 }
 
 /// Where the drawing should look: a problem or a point picked in the side panel
@@ -130,6 +138,13 @@ class AppState extends ChangeNotifier {
         text = utf8.decode(bytes);
       } on FormatException {
         text = latin1.decode(bytes); // older Windows programs write ANSI
+      }
+      final inst = readInstrument(name, text);
+      if (inst != null) {
+        if (inst.table.rows.isEmpty) {
+          throw FormatException('No points could be read from this ${inst.format} file. ${inst.notes.join('. ')}');
+        }
+        return OpenedFile(name, inst.table, const ColumnMap(), format: inst.format, notes: inst.notes);
       }
       t = readText(text);
     }
@@ -301,6 +316,24 @@ class AppState extends ChangeNotifier {
 
   /// The sheet as a PDF at scale
   Future<Uint8List> pdf(PdfFonts fonts) => writePdf(drawing!, sheet!, fonts, title: sheetInfo.title);
+
+  /// The UTM zone for Google Earth, remembered (Pakistan: 41 to 44; Lahore and Islamabad 43)
+  int get kmlZone => (store.readJson('kml')?['zone'] as int?) ?? 43;
+  bool get kmlNorth => (store.readJson('kml')?['north'] as bool?) ?? true;
+
+  /// The drawing for Google Earth
+  String kml({required int zone, required bool north}) {
+    store.writeJson('kml', {'zone': zone, 'north': north});
+    return writeKml(
+      drawing!,
+      zone: zone,
+      north: north,
+      title: sheetInfo.title.isEmpty ? (fileName ?? '') : sheetInfo.title,
+    );
+  }
+
+  /// "survey.csv" → "survey.kml"
+  String get kmlName => dxfName.replaceFirst(RegExp(r'\.dxf$'), '.kml');
 
   /// "survey.csv" → "survey.pdf"
   String get pdfName => dxfName.replaceFirst(RegExp(r'\.dxf$'), '.pdf');

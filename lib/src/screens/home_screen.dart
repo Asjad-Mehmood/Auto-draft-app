@@ -16,11 +16,13 @@ import '../ui/drawing_view.dart';
 import '../ui/theme.dart';
 import 'columns_dialog.dart';
 import 'edits.dart';
+import 'kml_dialog.dart';
 import 'options_dialog.dart';
 import 'sheet_dialog.dart';
 import 'side_panel.dart';
 
-const surveyExtensions = ['csv', 'txt', 'prn', 'xlsx', 'xls', 'asc', 'pts'];
+/// Survey files: tables, and total station files (Leica GSI, Sokkia SDR, Nikon RAW)
+const surveyExtensions = ['csv', 'txt', 'prn', 'xlsx', 'xls', 'asc', 'pts', 'gsi', 'sdr', 'raw'];
 
 /// A keyboard action that steps aside while a text box has the focus, so Ctrl+Z there undoes typing
 class _AppAction<T extends Intent> extends CallbackAction<T> {
@@ -185,6 +187,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _saveKml(BuildContext context) async {
+    final z = await showKmlDialog(context, state.kmlZone, state.kmlNorth);
+    if (z == null || !context.mounted) return;
+    final path = await files.save(
+      suggestedName: state.kmlName,
+      label: 'Google Earth (KML)',
+      extensions: const ['kml'],
+      bytes: utf8.encode(state.kml(zone: z.$1, north: z.$2)),
+    );
+    if (path != null && context.mounted) _message(context, 'Saved $path. Open it in Google Earth.');
+  }
+
   Future<void> _options(BuildContext context) async {
     final o = await showOptionsDialog(context, state.options);
     if (o != null) state.setOptions(o);
@@ -231,6 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onSavePoints: () => _savePoints(context),
               onSheet: () => _sheet(context),
               onSavePdf: () => _savePdf(context),
+              onSaveKml: () => _saveKml(context),
               onClose: () => _close(context),
             ),
             Expanded(
@@ -340,10 +355,11 @@ class _TopBar extends StatelessWidget {
     required this.onSavePoints,
     required this.onSheet,
     required this.onSavePdf,
+    required this.onSaveKml,
     required this.onClose,
   });
   final AppState state;
-  final VoidCallback onOpen, onSample, onOptions, onSave, onSavePoints, onClose, onSheet, onSavePdf;
+  final VoidCallback onOpen, onSample, onOptions, onSave, onSavePoints, onClose, onSheet, onSavePdf, onSaveKml;
 
   @override
   Widget build(BuildContext context) {
@@ -410,6 +426,7 @@ class _TopBar extends StatelessWidget {
               onSelected: (v) => switch (v) {
                 'points' => onSavePoints(),
                 'pdf' => onSavePdf(),
+                'kml' => onSaveKml(),
                 'revert' => state.revertCodes(),
                 _ => onClose(),
               },
@@ -420,6 +437,14 @@ class _TopBar extends StatelessWidget {
                     leading: const Icon(Icons.picture_as_pdf_outlined),
                     title: const Text('Save PDF'),
                     subtitle: Text(state.sheet == null ? '' : 'The sheet, ${state.sheet!.label}'),
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'kml',
+                  child: ListTile(
+                    leading: Icon(Icons.public),
+                    title: Text('Save KML (Google Earth)'),
+                    subtitle: Text('Lines and points on the map'),
                   ),
                 ),
                 PopupMenuItem(
@@ -618,7 +643,7 @@ class _Welcome extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                'CSV, TXT or Excel (.xlsx): point, easting, northing, level and code',
+                'CSV, TXT, Excel (.xlsx) or a total station file (Leica GSI, Sokkia SDR, Nikon RAW)',
                 style: TextStyle(color: Tone.muted, fontSize: 13),
               ),
               const SizedBox(height: 34),

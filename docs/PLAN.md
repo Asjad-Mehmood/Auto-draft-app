@@ -37,8 +37,13 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
    arrow, scale bar, notes and the title block (firm, title, location, client, surveyed/drawn by, date,
    drawing no., scale, sheet). In the DXF on its own layers (it prints at scale from model space), on
    screen, and as a vector PDF at scale. The firm, people, notes and paper are remembered.
-4. **Total station files.** Leica GSI, Sokkia SDR, Topcon and Nikon raw files straight in; KML for Google
-   Earth (shared with Excel to KML).
+4. **Total station files (done).** Opened like a CSV, with what was read and skipped shown first:
+   Leica GSI-8 and GSI-16 (coordinates, or worked out from the measurements and the station; codes from
+   words 71-79 or a code block), Sokkia SDR33 / SDR2x coordinate records, Nikon RAW (coordinate records,
+   and side shots worked out from their station and back-sight). KML for Google Earth in the chosen UTM
+   zone (remembered): lines in their colours, point features as pins, every point (off at first).
+   Topcon: its CSV export already opens. Written from the formats' specifications and checked against
+   files made from known coordinates; to be tried with files from the firm's own instruments.
 5. **Contours.** TIN from the points, contours at any interval with index labels, breaklines from walls,
    banks and drains; DXF and KML.
 6. **Launch.**

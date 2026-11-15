@@ -67,7 +67,25 @@ class _ColumnsDialogState extends State<_ColumnsDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Check which column holds what. The guess is filled in.', style: TextStyle(color: Tone.muted)),
+              if (widget.f.format.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Tone.info.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Tone.info.withValues(alpha: 0.35)),
+                  ),
+                  child: Text(
+                    '${widget.f.format} file: ${widget.f.notes.join('; ')}.',
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: Tone.info),
+                  ),
+                )
+              else
+                const Text(
+                  'Check which column holds what. The guess is filled in.',
+                  style: TextStyle(color: Tone.muted),
+                ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
