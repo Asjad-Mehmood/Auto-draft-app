@@ -347,6 +347,43 @@ class _Painter extends CustomPainter {
       );
     }
 
+    // the surface's triangles, then the contours, under the features
+    final tin = d.tin;
+    if (tin != null && d.options.showTin && !hidden.contains(Layers.tin.name)) {
+      final paint = Paint()
+        ..color = const Color(0xFF34435E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.7;
+      final path = Path();
+      for (final (a, b, c) in tin.triangles) {
+        final pa = toLocal(tin.points[a]), pb = toLocal(tin.points[b]), pc = toLocal(tin.points[c]);
+        path
+          ..moveTo(pa.dx, pa.dy)
+          ..lineTo(pb.dx, pb.dy)
+          ..lineTo(pc.dx, pc.dy)
+          ..close();
+      }
+      canvas.drawPath(path, paint);
+    }
+    for (final c in d.contours) {
+      final layer = c.major ? Layers.contourMajor : Layers.contourMinor;
+      if (hidden.contains(layer.name)) continue;
+      final path = Path();
+      for (var i = 0; i < c.vertices.length; i++) {
+        final p = toLocal(c.vertices[i]);
+        i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+      }
+      if (c.closed) path.close();
+      if (!path.getBounds().inflate(4).overlaps(screen)) continue;
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = aciOnDark(layer.color).withValues(alpha: c.major ? 0.95 : 0.6)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = c.major ? 1.6 : 0.9,
+      );
+    }
+
     // lines
     for (final l in d.lines) {
       if (hidden.contains(l.layer)) continue;
@@ -408,7 +445,16 @@ class _Painter extends CustomPainter {
           textDirection: TextDirection.ltr,
         )..layout();
         // the DXF text sits on its baseline; Flutter draws from the top
-        tp.paint(canvas, base - Offset(0, tp.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+        final baseline = tp.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+        if (t.rotation == 0 && !t.centered) {
+          tp.paint(canvas, base - Offset(0, baseline));
+        } else {
+          canvas.save();
+          canvas.translate(base.dx, base.dy);
+          canvas.rotate(-t.rotation * math.pi / 180);
+          tp.paint(canvas, Offset(t.centered ? -tp.width / 2 : 0, -baseline));
+          canvas.restore();
+        }
       }
     }
 

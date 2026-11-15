@@ -44,13 +44,14 @@ void main() {
       ..writeln()
       ..writeln(
         kind == CodeKind.line
-            ? '| Code | Feature | Layer | Colour | Line type |'
-            : '| Code | Feature | Layer | Colour | Symbol |',
+            ? '| Code | Feature | Layer | Colour | Line type | Contours |'
+            : '| Code | Feature | Layer | Colour | Symbol | Contours |',
       )
-      ..writeln('|---|---|---|---|---|');
+      ..writeln('|---|---|---|---|---|---|');
     for (final c in all.where((c) => c.kind == kind)) {
       final last = kind == CodeKind.line ? c.lineType.toLowerCase() : (symbols[c.symbol]?.label ?? c.symbol);
-      b.writeln('| `${c.code}` | ${c.name} | `${c.layer}` | ${c.color} | $last |');
+      final contours = !c.surface ? 'left out (not on the ground)' : (c.breakline ? 'breakline' : 'points used');
+      b.writeln('| `${c.code}` | ${c.name} | `${c.layer}` | ${c.color} | $last | $contours |');
     }
     b.writeln();
   }

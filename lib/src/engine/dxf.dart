@@ -187,11 +187,46 @@ String writeDxf(Drawing d, {Sheet? sheet}) {
     w.point(p.e, p.n, p.z ?? 0);
   }
   for (final t in d.texts) {
+    final z = o.lines3d || t.kind == TextKind.contour ? t.at.z : 0.0;
     w.pair(0, 'TEXT');
     w.pair(8, t.layer);
-    w.point(t.at.e, t.at.n, o.lines3d ? t.at.z : 0);
+    w.point(t.at.e, t.at.n, z);
     w.pair(40, w.num(t.height));
     w.pair(1, _text(t.text));
+    if (t.rotation != 0) w.pair(50, w.num(t.rotation));
+    if (t.centered) {
+      w.pair(72, '1');
+      w.point(t.at.e, t.at.n, z, 11);
+    }
+  }
+  // contours: flat lines at their level (elevation), as CAD programs expect
+  for (final c in d.contours) {
+    final layer = c.major ? Layers.contourMajor.name : Layers.contourMinor.name;
+    w.pair(0, 'POLYLINE');
+    w.pair(8, layer);
+    w.pair(66, '1');
+    w.point(0, 0, c.level);
+    w.pair(70, c.closed ? '1' : '0');
+    for (final v in c.vertices) {
+      w.pair(0, 'VERTEX');
+      w.pair(8, layer);
+      w.point(v.e, v.n, c.level);
+    }
+    w.pair(0, 'SEQEND');
+    w.pair(8, layer);
+  }
+  // the ground surface's triangles, at their levels
+  final tin = d.tin;
+  if (tin != null && o.showTin) {
+    for (final (a, b, c) in tin.triangles) {
+      final pa = tin.points[a], pb = tin.points[b], pc = tin.points[c];
+      w.pair(0, '3DFACE');
+      w.pair(8, Layers.tin.name);
+      w.point(pa.e, pa.n, pa.z);
+      w.point(pb.e, pb.n, pb.z, 11);
+      w.point(pc.e, pc.n, pc.z, 12);
+      w.point(pc.e, pc.n, pc.z, 13);
+    }
   }
   if (sheet != null) _sheet(w, sheet);
   w.endSection();

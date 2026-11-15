@@ -20,6 +20,7 @@ void main() {
   phase2();
   phase3();
   phase4();
+  phase5();
   testWidgets('the sample survey: open, check the columns, draw, save the DXF', (t) async {
     await _desktop(t);
     final h = Harness();
@@ -415,5 +416,33 @@ void phase4() {
     await t.tap(find.text('Open a survey file'));
     await t.pumpAndSettle();
     expect(find.textContaining('No points could be read from this Leica GSI-16 file'), findsOneWidget);
+  });
+}
+
+void phase5() {
+  testWidgets('contours switched on in the settings, then the triangles', (t) async {
+    await _desktop(t);
+    final h = Harness();
+    await t.pumpWidget(h.app);
+    await t.tap(find.text('Try the sample survey'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Draw it'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('1:500'));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(const ValueKey('opt-contours')));
+    await t.tap(find.byKey(const ValueKey('opt-contours')));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Show the triangles (TIN)'));
+    await t.tap(find.text('Show the triangles (TIN)'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Apply'));
+    await t.pumpAndSettle();
+    final d = h.state.drawing!;
+    expect(d.contours, isNotEmpty);
+    expect(d.options.showTin, isTrue);
+    expect(h.state.dxf(), contains('CONTOUR_MINOR'));
+    // the legend has them
+    expect(h.state.sheet!.items.whereType<SheetText>().map((x) => x.text), contains('Contour, every 0.1 m'));
   });
 }

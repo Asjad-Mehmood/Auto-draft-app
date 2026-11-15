@@ -21,6 +21,8 @@ class FeatureCode {
     this.lineType = 'CONTINUOUS',
     this.symbol = '',
     this.levels = true,
+    this.breakline = false,
+    this.surface = true,
   });
 
   /// What the surveyor types: "RE"
@@ -43,6 +45,25 @@ class FeatureCode {
   /// Whether its points get their level written beside them
   final bool levels;
 
+  /// For line codes: the ground changes along it (road edge, bank, drain), so contours bend at it
+  final bool breakline;
+
+  /// Its points are on the ground and go into the surface for contours (not roofs or wires)
+  final bool surface;
+
+  FeatureCode copyWith({bool? breakline, bool? surface}) => FeatureCode(
+    code: code,
+    name: name,
+    kind: kind,
+    layer: layer,
+    color: color,
+    lineType: lineType,
+    symbol: symbol,
+    levels: levels,
+    breakline: breakline ?? this.breakline,
+    surface: surface ?? this.surface,
+  );
+
   Map<String, Object> toJson() => {
     'code': code,
     'name': name,
@@ -52,6 +73,8 @@ class FeatureCode {
     'lineType': lineType,
     if (symbol.isNotEmpty) 'symbol': symbol,
     'levels': levels,
+    'breakline': breakline,
+    'surface': surface,
   };
 
   static FeatureCode? fromJson(Object? j) {
@@ -61,6 +84,9 @@ class FeatureCode {
     final k = CodeKind.values.where((v) => v.name == kind).firstOrNull;
     if (k == null || !validCode(code) || !validLayer(layer)) return null;
     final color = j['color'], lt = j['lineType'], sym = j['symbol'], lv = j['levels'];
+    // lists saved before contours: the standard code's choice, else none
+    final std = defaultCodes.where((c) => c.code == code.toUpperCase()).firstOrNull;
+    final bl = j['breakline'], sf = j['surface'];
     return FeatureCode(
       code: code.toUpperCase(),
       name: name,
@@ -70,6 +96,8 @@ class FeatureCode {
       lineType: lt is String && lineTypes.contains(lt) ? lt : 'CONTINUOUS',
       symbol: sym is String && symbols.containsKey(sym) ? sym : (k == CodeKind.point ? unknownSymbol : ''),
       levels: lv is bool ? lv : true,
+      breakline: k == CodeKind.line && (bl is bool ? bl : (std?.breakline ?? false)),
+      surface: sf is bool ? sf : (std?.surface ?? true),
     );
   }
 }
@@ -144,8 +172,20 @@ class CodeLibrary {
   static CodeLibrary defaults() => CodeLibrary(defaultCodes);
 }
 
-FeatureCode _line(String code, String name, String layer, int color, [String lt = 'CONTINUOUS']) =>
-    FeatureCode(code: code, name: name, kind: CodeKind.line, layer: layer, color: color, lineType: lt);
+/// Ground lines that contours bend at, and features not on the ground
+const _breaklines = {'RE', 'EP', 'KB', 'SH', 'CL', 'FP', 'TRK', 'WL', 'DR', 'NL', 'WE', 'TB', 'BB'};
+const _offGround = {'BLD', 'HT', 'PIPE'};
+
+FeatureCode _line(String code, String name, String layer, int color, [String lt = 'CONTINUOUS']) => FeatureCode(
+  code: code,
+  name: name,
+  kind: CodeKind.line,
+  layer: layer,
+  color: color,
+  lineType: lt,
+  breakline: _breaklines.contains(code),
+  surface: !_offGround.contains(code),
+);
 
 FeatureCode _point(String code, String name, String layer, int color, String symbol, {bool levels = true}) =>
     FeatureCode(

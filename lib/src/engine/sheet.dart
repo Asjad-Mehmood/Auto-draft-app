@@ -526,6 +526,26 @@ List<_Legend> _legend(Drawing d) {
   return [
     for (final c in lines.values.toList()..sort(byName)) _LegendLine(c),
     for (final c in pts.values.toList()..sort(byName)) _LegendSymbol(c),
+    if (d.contours.any((c) => !c.major))
+      _LegendLine(
+        FeatureCode(
+          code: '',
+          name: 'Contour, every ${_num(d.contourInterval)} m',
+          kind: CodeKind.line,
+          layer: Layers.contourMinor.name,
+          color: Layers.contourMinor.color,
+        ),
+      ),
+    if (d.contours.any((c) => c.major))
+      _LegendLine(
+        FeatureCode(
+          code: '',
+          name: 'Major contour, every ${_num(d.contourInterval * d.options.majorEvery)} m',
+          kind: CodeKind.line,
+          layer: Layers.contourMajor.name,
+          color: Layers.contourMajor.color,
+        ),
+      ),
     if (d.texts.any((t) => t.kind == TextKind.level))
       _LegendText((214.35).toStringAsFixed(d.options.levelDecimals), 'Level (m)'),
   ];
@@ -552,7 +572,11 @@ double _barLength(double mm, double f) {
 
 String _coord(double v) => v.round().toString();
 
-String _num(double v) => v == v.roundToDouble() ? v.round().toString() : v.toString();
+String _num(double v) {
+  if (v == v.roundToDouble()) return v.round().toString();
+  // 0.30000000000000004 → 0.3
+  return double.parse(v.toStringAsFixed(6)).toString();
+}
 
 /// Shortens a line to about [chars] characters
 String _fit(String s, double chars) {
