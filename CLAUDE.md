@@ -1,6 +1,8 @@
 # Auto Draft: notes for working on this repository
 
 - Flutter for Windows (same stack as Slope Calculator and Survey Toolkit). Flutter 3.47.7 in CI.
+  A macOS build (`macos/`, `.github/workflows/macos.yml`) makes a test `.dmg`; the Windows program
+  stays the released one, and Windows-only code (self-update) checks `Platform.isWindows`.
 - The engine (`lib/src/engine/`) must stay plain Dart: no `package:flutter` imports, so the command line
   tool and the tests can use it.
 - DXF output is R12 (AC1009). Layer and block names: letters, digits, `_ - $`, up to 31 characters.
