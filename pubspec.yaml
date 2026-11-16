@@ -1,7 +1,7 @@
 name: auto_draft
 description: "Auto Draft by Excel to KML: survey points to a finished drawing"
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ^3.10.0

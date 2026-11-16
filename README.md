@@ -76,7 +76,7 @@ SHOTS_DIR=shots flutter test test/shots_test.dart # pictures of the screens
 flutter build windows --release                # on Windows
 ```
 
-**Releases:** push a tag such as `v0.1.0` (or publish a GitHub release with a new tag). The workflow builds
+**Releases:** push a tag such as `v1.0.1` (or publish a GitHub release with a new tag). The workflow builds
 `AutoDraft-Setup.exe` and `latest.json` (version and SHA-256) and attaches them to the release; installed
 copies offer the update and check the SHA-256 before running it.
 
