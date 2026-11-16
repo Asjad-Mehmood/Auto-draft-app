@@ -44,8 +44,9 @@ jobs:
           "$APP/Contents/MacOS/Auto Draft" > run.log 2>&1 &
           PID=$!
           sleep 20
-          if kill -0 $PID 2>/dev/null; then echo "still running after 20 s"; kill $PID; else cat run.log; exit 1; fi
+          # a picture of its window while it runs, then close it
           screencapture -x mac-window.png || true
+          if kill -0 $PID 2>/dev/null; then echo "still running after 20 s"; kill $PID; else cat run.log; exit 1; fi
 
       - name: Make the disk image
         run: |
