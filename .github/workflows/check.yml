@@ -69,6 +69,14 @@ jobs:
           grep -q "Page size: *1190.55 x 841.89 pts (A3)" pdfinfo.txt
           pdftoppm -png -r 100 -singlefile sheet.pdf sheet-pdf
 
+      # PDF to drawing: a plot printed from CAD, and Auto Draft's own sheet, redrawn as AutoCAD 2000 DXFs
+      - name: PDF to drawing
+        run: |
+          dart run tool/pdfdraft.dart test/fixtures/pdf/cad-plot.pdf cad-plot.dxf --scale auto
+          python tool/check_pdf_dxf.py cad-plot.dxf cad-plot-dxf.png --expect DIMENSION=1 --expect HATCH=2 --expect CIRCLE=3 --expect ARC=1 --expect TEXT=3
+          dart run tool/pdfdraft.dart sheet.pdf sheet-from-pdf.dxf
+          python tool/check_pdf_dxf.py sheet-from-pdf.dxf sheet-from-pdf.png
+
       # total station files in, and Google Earth out
       - name: Instrument files and KML
         run: |
@@ -91,6 +99,10 @@ jobs:
             sheet.pdf
             sheet-dxf.png
             sheet-pdf.png
+            cad-plot.dxf
+            cad-plot-dxf.png
+            sheet-from-pdf.dxf
+            sheet-from-pdf.png
           if-no-files-found: ignore
           retention-days: 14
 

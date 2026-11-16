@@ -1,0 +1,100 @@
+{
+ "scale": 200,
+ "polylines": [
+  {
+   "layer_color": "black",
+   "closed": true,
+   "vertices": 6
+  },
+  {
+   "layer_color": "red"
+  },
+  {
+   "layer_color": "red"
+  },
+  {
+   "layer_color": "green",
+   "closed": true,
+   "vertices": 4
+  }
+ ],
+ "circles": [
+  {
+   "center": [
+    25,
+    15
+   ],
+   "radius": 1.5
+  },
+  {
+   "center": [
+    30,
+    20
+   ],
+   "radius": 1.5
+  },
+  {
+   "center": [
+    35,
+    15
+   ],
+   "radius": 1.5
+  }
+ ],
+ "arcs": [
+  {
+   "center": [
+    30,
+    5
+   ],
+   "radius": 15,
+   "start": -90,
+   "end": 0
+  }
+ ],
+ "texts": [
+  {
+   "text": "BUILDING",
+   "height_mm": 3.5,
+   "angle": 0
+  },
+  {
+   "text": "ROAD",
+   "height_mm": 2.5,
+   "angle": 0
+  },
+  {
+   "text": "+101.250",
+   "height_mm": 1.8,
+   "angle": 30
+  }
+ ],
+ "hatches": [
+  {
+   "pattern": "SOLID",
+   "area": 40
+  },
+  {
+   "pattern": "ANSI31",
+   "angle": 45,
+   "lines": 27
+  }
+ ],
+ "dimensions": [
+  {
+   "from": [
+    0,
+    0
+   ],
+   "to": [
+    20,
+    0
+   ],
+   "value": "20.00"
+  }
+ ],
+ "linetypes": {
+  "center": "CENTER",
+  "boundary": "DASHED"
+ }
+}

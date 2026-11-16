@@ -19,6 +19,7 @@ import 'columns_dialog.dart';
 import 'edits.dart';
 import 'kml_dialog.dart';
 import 'options_dialog.dart';
+import 'pdf_draft_screen.dart';
 import 'sheet_dialog.dart';
 import 'side_panel.dart';
 
@@ -48,6 +49,7 @@ class HomeScreen extends StatefulWidget {
     required this.files,
     required this.account,
     this.dropFiles = false,
+    this.pdfRunner = backgroundDraft,
   });
   final AppState state;
   final FileIo files;
@@ -55,6 +57,9 @@ class HomeScreen extends StatefulWidget {
 
   /// Files can be dragged onto the window (Windows; off in tests, which have no drop support)
   final bool dropFiles;
+
+  /// How a PDF drawing is drafted (see PdfDraftScreen)
+  final DraftRunner pdfRunner;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -78,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openBytes(BuildContext context, String name, Uint8List bytes) async {
+    if (name.toLowerCase().endsWith('.pdf')) return _openPdf(context, name, bytes);
     final OpenedFile f;
     try {
       f = AppState.read(name, bytes);
@@ -88,6 +94,20 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!context.mounted) return;
     final m = await showColumnsDialog(context, f);
     if (m != null) state.open(f, m);
+  }
+
+  /// A PDF printed from CAD: redrawn as a drawing on its own screen
+  Future<void> _openPdf(BuildContext context, String name, Uint8List bytes) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          PdfDraftScreen(name: name, bytes: bytes, files: files, account: widget.account, runner: widget.pdfRunner),
+    ),
+  );
+
+  Future<void> _pickPdf(BuildContext context) async {
+    final picked = await files.open(label: 'PDF drawing', extensions: const ['pdf']);
+    if (picked == null || !context.mounted) return;
+    await _openPdf(context, picked.$1, picked.$2);
   }
 
   /// Before the survey is closed or replaced: corrected codes not saved yet are offered for saving.
@@ -138,8 +158,18 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _dragging = false);
     if (d.files.isEmpty) return;
     final f = d.files.first;
-    if (!surveyExtensions.contains(f.name.split('.').last.toLowerCase())) {
-      _message(context, '${f.name} isn\'t a survey file. Drop a CSV, TXT or Excel (.xlsx) file.', error: true);
+    final ext = f.name.split('.').last.toLowerCase();
+    if (ext == 'pdf') {
+      final bytes = await f.readAsBytes();
+      if (context.mounted) await _openPdf(context, f.name, bytes);
+      return;
+    }
+    if (!surveyExtensions.contains(ext)) {
+      _message(
+        context,
+        '${f.name} isn\'t a survey file. Drop a CSV, TXT or Excel (.xlsx) file, or a PDF drawing.',
+        error: true,
+      );
       return;
     }
     if (!await _leave(context) || !context.mounted) return;
@@ -278,7 +308,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Expanded(
               child: d == null
-                  ? _Welcome(onOpen: () => _open(context), onSample: () => _sample(context))
+                  ? _Welcome(
+                      onOpen: () => _open(context),
+                      onSample: () => _sample(context),
+                      onPdf: () => _pickPdf(context),
+                    )
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -602,8 +636,8 @@ class _StatusBar extends StatelessWidget {
 }
 
 class _Welcome extends StatelessWidget {
-  const _Welcome({required this.onOpen, required this.onSample});
-  final VoidCallback onOpen, onSample;
+  const _Welcome({required this.onOpen, required this.onSample, required this.onPdf});
+  final VoidCallback onOpen, onSample, onPdf;
 
   @override
   Widget build(BuildContext context) {
@@ -679,11 +713,18 @@ class _Welcome extends StatelessWidget {
                     icon: const Icon(Icons.science_outlined),
                     label: const Text('Try the sample survey'),
                   ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18)),
+                    onPressed: onPdf,
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: const Text('Draft a PDF drawing'),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
               const Text(
-                'CSV, TXT, Excel (.xlsx) or a total station file (Leica GSI, Sokkia SDR, Nikon RAW)',
+                'CSV, TXT, Excel (.xlsx) or a total station file (Leica GSI, Sokkia SDR, Nikon RAW); '
+                'or a PDF printed from CAD, redrawn with its layers, line types, hatches and dimensions',
                 style: TextStyle(color: Tone.muted, fontSize: 13),
               ),
               const SizedBox(height: 34),
