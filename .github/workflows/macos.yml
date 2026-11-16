@@ -1,0 +1,65 @@
+name: macOS
+
+# The Mac version, for trying: builds Auto Draft for macOS (Apple silicon and Intel), checks it
+# opens, and keeps "Auto-Draft-macOS.dmg" for 14 days under the run's Artifacts. Nothing is
+# published. The app is not notarised by Apple yet, so the first time it is opened with
+# right-click → Open (or System Settings → Privacy & Security → Open Anyway).
+on:
+  push:
+    branches-ignore:
+      - 'dependabot/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.7'
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build the app
+        run: |
+          flutter pub get
+          flutter build macos --release --dart-define=APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          ls -la "build/macos/Build/Products/Release/"
+
+      # it starts and keeps running (a crash at start would end it)
+      - name: It opens
+        run: |
+          APP="build/macos/Build/Products/Release/Auto Draft.app"
+          codesign --verify --deep --strict "$APP" && echo "signature ok (ad hoc)"
+          "$APP/Contents/MacOS/Auto Draft" > run.log 2>&1 &
+          PID=$!
+          sleep 20
+          if kill -0 $PID 2>/dev/null; then echo "still running after 20 s"; kill $PID; else cat run.log; exit 1; fi
+          screencapture -x mac-window.png || true
+
+      - name: Make the disk image
+        run: |
+          mkdir -p dmg
+          cp -R "build/macos/Build/Products/Release/Auto Draft.app" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "Auto Draft" -srcfolder dmg -ov -format UDZO Auto-Draft-macOS.dmg
+          hdiutil verify Auto-Draft-macOS.dmg
+          ls -la Auto-Draft-macOS.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Auto-Draft-macOS
+          path: |
+            Auto-Draft-macOS.dmg
+            mac-window.png
+          retention-days: 14

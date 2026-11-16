@@ -12,6 +12,7 @@ analyzer:
     - web/**
     - tool/*.py
     - windows/**
+    - macos/**
 
 linter:
   rules:
