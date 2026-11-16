@@ -28,6 +28,15 @@ levels written, every feature on its own layer.</p>
 5. **Google Earth**: the drawing as KML in its UTM zone.
 6. **Contours**: from the ground surface (TIN), bending at breaklines (road edges, banks, drains), every
    5th one labelled; in the DXF at their levels, in the PDF and the KML.
+7. **PDF to drawing**: a PDF printed from CAD is redrawn as a proper drawing, not traced: pieces joined
+   into polylines, curves into arcs and circles, rows of dashes into their line type (DASHED, CENTER,
+   PHANTOM, DOT, DASHDOT, DIVIDE, BORDER), fills into SOLID hatches, parallel lines into pattern hatches
+   (ANSI31, ANSI37, user), arrows with a value into real dimensions, and text into text at its size and
+   angle. Everything on a layer (the PDF's own layers when it has them, else one per colour and line
+   type) with AutoCAD's standard colours, line types and lineweights. The scale comes from the
+   dimensions. Saved as an AutoCAD 2000 DXF. Scanned PDFs (pictures) can't be drafted and say so.
+
+<p align="center"><img src="docs/screens/17-pdf-drawing.png" width="760" alt="A PDF plan redrawn by Auto Draft: dashed boundary, centre line, hatches, a dimension and text on their layers"></p>
 
 <p align="center"><img src="docs/screens/3-drawing.png" width="760" alt="Auto Draft with the sample survey drawn"></p>
 
@@ -58,7 +67,11 @@ removed in the Codes tab (layer, colour, line type or symbol), and a team's own 
 | `lib/src/engine/` | the engine, plain Dart with no Flutter: import, codes, line builder, checks, geometry, DXF writer |
 | `lib/src/` | the Windows app: window, drawing view, side panel, dialogs, settings, self-update |
 | `tool/autodraft.dart` | the engine on the command line: `dart run tool/autodraft.dart survey.csv drawing.dxf` |
+| `lib/src/engine/pdf_in/` | PDF to drawing: PDF reader, page interpreter, rebuilding (joins, arcs, line types, hatches, dimensions, text, layers), AutoCAD 2000 DXF writer |
 | `tool/check_dxf.py` | opens a DXF with ezdxf (reader and auditor) and draws it to a PNG |
+| `tool/pdfdraft.dart` | PDF to drawing on the command line: `dart run tool/pdfdraft.dart plan.pdf plan.dxf --scale auto` |
+| `tool/check_pdf_dxf.py` | checks a DXF made from a PDF (ezdxf reader and auditor, layers, line types, dimension blocks) |
+| `tool/make_pdf_drawings.py` | writes the test PDFs in `test/fixtures/pdf/`, printed the way AutoCAD prints |
 | `tool/make_sample.py` | writes the sample survey in `assets/samples/` |
 | `installer/` | NSIS installer: per user, no administrator rights |
 | `.github/workflows` | `check.yml` on every push, `release.yml` on a `v*` tag |

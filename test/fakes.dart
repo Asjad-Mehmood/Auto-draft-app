@@ -90,7 +90,8 @@ class Harness {
   final files = FakeFiles();
   final site = FakeSite();
   late final Account account;
-  Widget get app => AutoDraftApp(state: state, files: files, account: account);
+  // a PDF drawing is drafted directly, not in the background (tests run on fake time)
+  Widget get app => AutoDraftApp(state: state, files: files, account: account, pdfRunner: (work) async => work());
 }
 
 /// A survey with mistakes in it, for the problem list
