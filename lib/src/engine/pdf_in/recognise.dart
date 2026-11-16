@@ -376,9 +376,11 @@ Recognised recognise(
         pattern = 'ANSI37';
         angle = 0;
         scale = first.spacing / 3.175;
-      } else if (!crossed && (angle - 45).abs() < 1) {
+      } else if (!crossed) {
+        // one family of lines: ANSI31 turned to their angle (ANSI31's own lines are at 45°)
         pattern = 'ANSI31';
-        angle = 0;
+        angle = ((angle - 45) % 180 + 180) % 180;
+        if ((angle - 180).abs() < 0.5) angle = 0;
         scale = spacing / 3.175;
       } else if (crossed) {
         pattern = '_USER_DOUBLE';

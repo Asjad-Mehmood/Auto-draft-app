@@ -30,6 +30,19 @@ typedef DraftRunner = Future<PdfDraftResult> Function(PdfDraftResult Function() 
 
 Future<PdfDraftResult> backgroundDraft(PdfDraftResult Function() work) => Isolate.run(work);
 
+/// The drafting, as a job for the background. Made here, outside the screen: a function made
+/// inside the screen's (async) code would carry the screen with it, and the background can't take
+/// that ("object is unsendable"). This one holds only the PDF's bytes and the three choices.
+PdfDraftResult Function() draftJob(Uint8List bytes, int page, int scale, bool useLayers) => () {
+  final f = PdfDrawingFile.open(bytes);
+  final d = f.draft(
+    page,
+    options: PdfDraftOptions(scale: scale > 0 ? scale : null, useLayers: useLayers),
+    autoScale: scale == _autoScale,
+  );
+  return PdfDraftResult(d.drawing, f.pageCount, f.layerNames.length, d.suggestedScale);
+};
+
 /// 0: the scale the dimensions show; -1: millimetres, as printed; else 1:n
 const _autoScale = 0, _paperScale = -1;
 const _scales = [50, 100, 200, 250, 500, 1000, 1250, 2000, 2500, 5000];
@@ -79,15 +92,7 @@ class _PdfDraftScreenState extends State<PdfDraftScreen> {
     });
     final bytes = widget.bytes, page = _page, scale = _scale, layers = _useLayers;
     try {
-      final r = await widget.runner(() {
-        final f = PdfDrawingFile.open(bytes);
-        final d = f.draft(
-          page,
-          options: PdfDraftOptions(scale: scale > 0 ? scale : null, useLayers: layers),
-          autoScale: scale == _autoScale,
-        );
-        return PdfDraftResult(d.drawing, f.pageCount, f.layerNames.length, d.suggestedScale);
-      });
+      final r = await widget.runner(draftJob(bytes, page, scale, layers));
       if (!mounted || run != _run) return;
       setState(() {
         _result = r;
