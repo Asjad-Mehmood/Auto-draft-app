@@ -52,7 +52,7 @@ buildings. Today drafting a survey in AutoCAD takes 1–3 days; with Auto Draft 
    PDF, on screen, in the legend and in the KML. Each code says whether it is on the ground and whether
    it is a breakline (code editor).
 6. **Launch.**
-   - First release `v0.1.0` (owner's go-ahead): `AutoDraft-Setup.exe` + `latest.json` on GitHub Releases.
+   - First release `v1.0.0` (published 15 November 2026): `AutoDraft-Setup.exe` + `latest.json` on GitHub Releases.
    - **Survey Toolkit:** add Auto Draft to the website's Toolkit feed (`lib/toolkit/feed.ts` in the website
      repository: id `auto-draft`, this repository's latest release, NSIS quiet install `/S`), so the Toolkit
      installs and updates it like the other tools. Toolkit app: its icon and description.

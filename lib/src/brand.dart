@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 const appName = 'Auto Draft';
 const appTagline = 'Survey points to a finished drawing';
 const appPublisher = 'Excel to KML';
-const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.1.0');
+const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 const websiteUrl = 'https://www.exceltokml.com';
 
 /// The logo's colours: deep navy with survey gold, the same family as Excel to KML, Traverse & Level
