@@ -150,11 +150,17 @@ List<V> _vertices(SubPath sp) {
   final out = <V>[V(sp.start.x * _mm, sp.start.y * _mm)];
   for (final s0 in sp.segs) {
     final s = Seg(mm(s0.a), mm(s0.b), s0.c1 == null ? null : mm(s0.c1!), s0.c2 == null ? null : mm(s0.c2!));
-    if (!s.curved || s.a.dist(s.c1!) + s.c1!.dist(s.c2!) + s.c2!.dist(s.b) - s.a.dist(s.b) < 1e-4) {
+    if (!s.curved) {
       if (s.a.dist(s.b) > 1e-6) out.add(V(s.b.x, s.b.y));
       continue;
     }
+    // a curve that follows a circle is an arc, however gently it bends (a short dash on a big
+    // curve hardly bends at all); one that doesn't and is nearly straight is a straight piece
     final sweep = _fitArc(s);
+    if (sweep == null && s.a.dist(s.c1!) + s.c1!.dist(s.c2!) + s.c2!.dist(s.b) - s.a.dist(s.b) < 1e-3) {
+      if (s.a.dist(s.b) > 1e-6) out.add(V(s.b.x, s.b.y));
+      continue;
+    }
     if (sweep != null) {
       out[out.length - 1] = out.last.withB(math.tan(sweep / 4));
       out.add(V(s.b.x, s.b.y));
@@ -382,48 +388,55 @@ List<Piece> _mergeDashes(List<Piece> pieces) {
   return out;
 }
 
-/// Short arcs of one circle, evenly spaced, become one arc (or circle) with a line type
+/// Short arcs of one circle, evenly spaced, become one arc (or circle) with a line type.
+///
+/// The circle is taken from the longest dash: a short dash on a big curve bends too little for its
+/// own circle to be worked out well, so the other dashes are tested against that circle instead
+/// (their ends and middle on it). Very short dashes may even have come out straight; they count too.
 List<Piece> _mergeArcDashes(List<Piece> pieces) {
   final out = <Piece>[];
-  final cands = [
+  double norm(double x) {
+    var v = x % (2 * math.pi);
+    if (v < 0) v += 2 * math.pi;
+    return v;
+  }
+
+  final arcs = [
     for (final p in pieces)
-      if (p.arcSingle && p.pen.lineType == 'CONTINUOUS' && !p.used) (p: p, a: arcOf(p.v[0], p.v[1])),
+      if (p.arcSingle && p.pen.lineType == 'CONTINUOUS' && !p.used) p,
+  ]..sort((a, b) => b.length.compareTo(a.length));
+  final shortStraight = [
+    for (final p in pieces)
+      if (p.straightSingle && p.pen.lineType == 'CONTINUOUS' && !p.used && p.length < 8) p,
   ];
-  cands.sort((x, y) => x.a.r.compareTo(y.a.r));
-  final used = <int>{};
-  for (var i = 0; i < cands.length; i++) {
-    if (used.contains(i)) continue;
-    final base = cands[i];
-    final tol = math.max(0.05, 0.003 * base.a.r);
-    final same = <int>[i];
-    for (var j = i + 1; j < cands.length && cands[j].a.r - base.a.r <= tol; j++) {
-      final c = cands[j];
-      if (!used.contains(j) &&
-          (c.a.cx - base.a.cx).abs() < tol &&
-          (c.a.cy - base.a.cy).abs() < tol &&
-          c.p.pen.same(base.p.pen)) {
-        same.add(j);
-      }
-    }
-    if (same.length < 3) continue;
-    // each dash as an anticlockwise angle range
-    final r = base.a.r, cx = base.a.cx, cy = base.a.cy;
-    double norm(double x) {
-      var v = x % (2 * math.pi);
-      if (v < 0) v += 2 * math.pi;
-      return v;
+  for (final base in arcs) {
+    if (base.used) continue;
+    final c = arcOf(base.v[0], base.v[1]);
+    if (c.sweep.abs() * c.r < 3) continue; // too short to trust its circle
+    final tol = math.max(0.05, 0.002 * c.r);
+    bool onCircle(V q) => ((math.sqrt((q.x - c.cx) * (q.x - c.cx) + (q.y - c.cy) * (q.y - c.cy))) - c.r).abs() <= tol;
+    V middle(Piece p) {
+      if (p.v[0].b == 0) return V((p.v[0].x + p.v[1].x) / 2, (p.v[0].y + p.v[1].y) / 2);
+      final a = arcOf(p.v[0], p.v[1]);
+      final t = math.atan2(p.v[0].y - a.cy, p.v[0].x - a.cx) + a.sweep / 2;
+      return V(a.cx + a.r * math.cos(t), a.cy + a.r * math.sin(t));
     }
 
+    final same = <Piece>[
+      for (final p in [...arcs, ...shortStraight])
+        if (!p.used && p.pen.same(base.pen) && onCircle(p.v[0]) && onCircle(p.v[1]) && onCircle(middle(p))) p,
+    ];
+    if (same.length < 3) continue;
+    // each dash as an anticlockwise angle range on the circle
     final dashes = [
-      for (final k in same)
+      for (final p in same)
         () {
-          final c = cands[k];
-          final s = math.atan2(c.p.v[0].y - cy, c.p.v[0].x - cx);
-          final e = math.atan2(c.p.v[1].y - cy, c.p.v[1].x - cx);
-          final a0 = c.a.sweep > 0 ? norm(s) : norm(e);
-          return (k: k, a0: a0, len: c.a.sweep.abs());
+          final t1 = math.atan2(p.v[0].y - c.cy, p.v[0].x - c.cx), t2 = math.atan2(p.v[1].y - c.cy, p.v[1].x - c.cx);
+          final span = norm(t2 - t1);
+          return span <= math.pi ? (p: p, a0: norm(t1), len: span) : (p: p, a0: norm(t2), len: 2 * math.pi - span);
         }(),
     ]..sort((x, y) => x.a0.compareTo(y.a0));
+    final r = c.r, cx = c.cx, cy = c.cy;
     final lens = [for (final d in dashes) d.len * r];
     final starts = [for (final d in dashes) d.a0 * r];
     final gaps = [for (var k = 1; k < dashes.length; k++) (dashes[k].a0 - dashes[k - 1].a0 - dashes[k - 1].len) * r];
@@ -440,9 +453,9 @@ List<Piece> _mergeArcDashes(List<Piece> pieces) {
     // a full circle when the dashes go all the way round
     final covered =
         dashes.fold(0.0, (a, d) => a + d.len) + gaps.where((g) => g < 4 * typical).fold(0.0, (a, g) => a + g / r);
-    final pen = base.p.pen.withLineType(kind.$1, kind.$2 / standardPeriod(kind.$1));
+    final pen = base.pen.withLineType(kind.$1, kind.$2 / standardPeriod(kind.$1));
     if (covered > 2 * math.pi - 2 * typical / r) {
-      out.add(_circlePiece(cx, cy, r, pen, base.p.order));
+      out.add(_circlePiece(cx, cy, r, pen, base.order));
     } else {
       // from the dash after the biggest gap all the way round to the dash before it
       var big = 0;
@@ -467,13 +480,12 @@ List<Piece> _mergeArcDashes(List<Piece> pieces) {
           ],
           false,
           pen,
-          base.p.order,
+          base.order,
         ),
       );
     }
-    for (final k in same) {
-      used.add(k);
-      cands[k].p.used = true;
+    for (final p in same) {
+      p.used = true;
     }
   }
   return out;
@@ -724,7 +736,8 @@ PageDraft draftPage(PageContent page, PdfDraftOptions o) {
         // a single point drawn as a zero-length line (a dot)
         final pts = v.length == 1 ? [v.first, v.first] : v;
         // a closed path whose two halves are arcs of one circle: a circle
-        pieces.add(Piece(pts, sp.closed && pts.length > 2, pen, p.order));
+        // closed: a polygon, or a circle that came down to two half arcs
+        pieces.add(Piece(pts, sp.closed && (pts.length > 2 || pts.any((q) => q.b != 0)), pen, p.order));
       }
     }
     if (p.fill) {

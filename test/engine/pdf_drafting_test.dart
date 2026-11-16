@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:auto_draft/src/engine/pdf_in/pdf_drafting.dart';
 import 'package:auto_draft/src/engine/pdf_in/rebuild.dart' show classifyDashes;
+import 'package:auto_draft/src/screens/pdf_draft_screen.dart' show draftJob;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A small PDF written by hand: [content] is the page's drawing, [layers] its optional content groups
@@ -201,6 +203,51 @@ void main() {
         () => PdfDrawingFile.open(Uint8List.fromList(utf8.encode('Point,E,N\n1,2,3'))),
         throwsA(isA<PdfReadError>()),
       );
+    });
+  });
+
+  group('the sample drawing (tool/make_sample_plan_pdf.py)', () {
+    final sample = File('test/fixtures/pdf/sample-site-plan.pdf').readAsBytesSync();
+
+    test('it drafts in a background isolate, as the app does it', () async {
+      // the job must be sendable: a job that carried the screen with it failed on the Mac with
+      // "object is unsendable"
+      final r = await Isolate.run(draftJob(sample, 0, 0, true));
+      expect(r.pageCount, 2);
+      expect(r.pdfLayers, 17);
+      expect(r.drawing.scale, 250);
+    });
+
+    test('the site plan: its layers, scale, dimensions, circles and line types', () {
+      final d = PdfDrawingFile.open(sample).draft(0, autoScale: true).drawing;
+      expect(d.scale, 250);
+      expect(d.layers.keys, containsAll(['C-PROP-BNDY', 'C-ROAD-CNTR', 'A-BLDG', 'L-TREE', 'G-ANNO-DIMS']));
+      final dims = [for (final x in d.entities.whereType<CadDimension>()) double.parse(x.measured.toStringAsFixed(2))]
+        ..sort();
+      expect(dims, [4.24, 10.0, 16.0, 20.0, 22.0, 22.0, 24.0, 44.0, 86.0]);
+      // 7 trees (canopy and trunk) and 3 manholes
+      expect(d.entities.whereType<CadCircle>(), hasLength(17));
+      // the centre line round the curve is one CENTER polyline, arc and all
+      final cl = d.entities.where((e) => e.style.layer == 'C-ROAD-CNTR').toList();
+      expect(d.layers['C-ROAD-CNTR']!.lineType, 'CENTER');
+      expect(cl.whereType<CadPolyline>().single.vertices.any((v) => v.bulge != 0), isTrue);
+      expect(cl.whereType<CadArc>(), isEmpty);
+      expect(d.layers['C-PROP-BNDY']!.lineType, 'PHANTOM');
+      final hatches = d.entities.whereType<CadHatch>().map((h) => h.pattern).toList();
+      expect(hatches.where((p) => p == 'ANSI31'), hasLength(2));
+      expect(hatches, contains('ANSI37'));
+    });
+
+    test('the cross section: 1:50, both pattern hatches ANSI31 at their angles', () {
+      final d = PdfDrawingFile.open(sample).draft(1, autoScale: true).drawing;
+      expect(d.scale, 50);
+      final dims = [for (final x in d.entities.whereType<CadDimension>()) double.parse(x.measured.toStringAsFixed(2))]
+        ..sort();
+      expect(dims, [2.15, 2.15, 7.3]);
+      final ansi =
+          d.entities.whereType<CadHatch>().where((h) => h.pattern == 'ANSI31').map((h) => h.angle.round()).toList()
+            ..sort();
+      expect(ansi, [0, 90]);
     });
   });
 
