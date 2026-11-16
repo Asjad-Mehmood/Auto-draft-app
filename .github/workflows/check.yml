@@ -136,7 +136,8 @@ jobs:
         shell: pwsh
         working-directory: installer
         run: |
-          if (-not (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
+          ../tool/install_nsis.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           & "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=0.0.0 installer.nsi
           if (-not (Test-Path AutoDraft-Setup.exe)) { throw "The installer was not made" }
 
