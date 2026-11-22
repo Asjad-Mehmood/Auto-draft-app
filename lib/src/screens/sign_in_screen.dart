@@ -349,8 +349,8 @@ class _SignInCardState extends State<SignInCard> {
         const Text('Your Excel to KML account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
         const Text(
-          'Free. The same account as exceltokml.com, Excel to KML, Traverse & Level and Slope Calculator. '
-          'After the first sign-in Auto Draft opens straight away, offline too. Your surveys stay on this PC.',
+          'Sign in with your Excel to KML account, or create one for free. One account works on exceltokml.com '
+          'and in all our programs. Opened from the Survey Toolkit, you\'re signed in already.',
           style: TextStyle(color: Tone.muted, height: 1.45),
         ),
         const SizedBox(height: 16),
