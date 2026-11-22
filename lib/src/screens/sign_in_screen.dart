@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../account/account.dart';
 import '../account/api.dart';
+import '../assets.dart';
 import '../brand.dart';
 import '../ui/theme.dart';
 
@@ -36,7 +37,12 @@ class SignInScreen extends StatelessWidget {
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: Image.asset('assets/brand/icon-512.png', width: 80, height: 80, excludeFromSemantics: true),
+                    child: Image.asset(
+                      asset('assets/brand/icon-512.png'),
+                      width: 80,
+                      height: 80,
+                      excludeFromSemantics: true,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
