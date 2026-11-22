@@ -1,3 +1,4 @@
+import 'package:auto_draft/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,6 +11,27 @@ Future<void> _desktop(WidgetTester t) async {
 }
 
 void main() {
+  testWidgets('opened from the Survey Toolkit: signed in with its code, no sign-in screen', (t) async {
+    await _desktop(t);
+    final h = Harness(signedIn: false);
+    await t.pumpWidget(h.appWith(signinCode: 'a' * 64));
+    await t.pumpAndSettle();
+    expect(find.text('Your Excel to KML account'), findsNothing);
+    expect(h.account.signedIn, isTrue);
+    expect(h.account.api.token, 't3');
+    expect(signinCodeFrom(['--signin-code=${'a' * 64}']), 'a' * 64);
+    expect(signinCodeFrom(const []), isNull);
+  });
+
+  testWidgets('a Toolkit code that has run out: the sign-in shows as before', (t) async {
+    await _desktop(t);
+    final h = Harness(signedIn: false);
+    await t.pumpWidget(h.appWith(signinCode: 'b' * 64));
+    await t.pumpAndSettle();
+    expect(find.text('Your Excel to KML account'), findsOneWidget);
+    expect(h.account.checking, isFalse);
+  });
+
   testWidgets('not signed in: the sign-in comes first, then the app', (t) async {
     await _desktop(t);
     final h = Harness(signedIn: false);

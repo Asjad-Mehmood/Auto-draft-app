@@ -74,6 +74,24 @@ class Account extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Opened from the Survey Toolkit: signs in to the Toolkit's account with the one-use code it was
+  /// started with. When the code can't be used (too old, offline), it carries on as [restore].
+  Future<void> signInFromToolkit(String code) async {
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(code)) return restore();
+    checking = true;
+    notifyListeners();
+    try {
+      _signedIn(await api.call('POST', '/api/toolkit/app-code/redeem', {'code': code, 'app': 'auto-draft'}));
+      checking = false;
+      notifyListeners();
+    } on ApiError {
+      // as at start: ask about the remembered sign-in, or show the sign-in
+      checking = _user == null && api.token != null;
+      notifyListeners();
+      await restore();
+    }
+  }
+
   /// On start: is the remembered sign-in still good? Offline, the remembered account is kept.
   /// The call also tells the website the app was opened (Admin counts its use).
   Future<void> restore() async {
