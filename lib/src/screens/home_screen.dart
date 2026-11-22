@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../account/account.dart';
+import '../assets.dart';
 import '../brand.dart';
 import '../engine/codes.dart';
 import '../engine/drawing.dart';
@@ -186,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _sample(BuildContext context) async {
     if (!await _leave(context) || !context.mounted) return;
-    final data = await rootBundle.load('assets/samples/sample-survey.csv');
+    final data = await rootBundle.load(asset('assets/samples/sample-survey.csv'));
     if (!context.mounted) return;
     await _openBytes(context, 'sample-survey.csv', data.buffer.asUint8List());
   }
@@ -212,8 +213,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _savePdf(BuildContext context) async {
     final fonts = PdfFonts(
-      await rootBundle.load('assets/fonts/Inter_400Regular.ttf'),
-      await rootBundle.load('assets/fonts/Inter_700Bold.ttf'),
+      await rootBundle.load(asset('assets/fonts/Inter_400Regular.ttf')),
+      await rootBundle.load(asset('assets/fonts/Inter_700Bold.ttf')),
     );
     final bytes = await state.pdf(fonts);
     final path = await files.save(suggestedName: state.pdfName, label: 'PDF', extensions: const ['pdf'], bytes: bytes);
@@ -436,7 +437,7 @@ class _TopBar extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(9),
-            child: Image.asset('assets/brand/icon-512.png', width: 36, height: 36),
+            child: Image.asset(asset('assets/brand/icon-512.png'), width: 36, height: 36),
           ),
           const SizedBox(width: 12),
           const Text(
@@ -678,7 +679,7 @@ class _Welcome extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(22),
-                child: Image.asset('assets/brand/icon-512.png', width: 88, height: 88),
+                child: Image.asset(asset('assets/brand/icon-512.png'), width: 88, height: 88),
               ),
               const SizedBox(height: 20),
               const Text(
