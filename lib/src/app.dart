@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import 'account/account.dart';
+import 'account/toolkit_code.dart';
 import 'brand.dart';
 import 'screens/home_screen.dart';
 import 'screens/pdf_draft_screen.dart';
@@ -47,7 +48,9 @@ class _AutoDraftAppState extends State<AutoDraftApp> {
   void initState() {
     super.initState();
     final code = widget.signinCode;
-    code == null ? widget.account.restore() : widget.account.signInFromToolkit(code);
+    code == null
+        ? widget.account.signInWithToolkitOrRestore(() => askToolkitForCode('auto-draft'))
+        : widget.account.signInFromToolkit(code);
     if (widget.checkForUpdates) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final c = _navigator.currentContext;
