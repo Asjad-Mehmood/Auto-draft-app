@@ -20,7 +20,11 @@ class AutoDraftApp extends StatefulWidget {
     this.checkForUpdates = false,
     this.dropFiles = false,
     this.pdfRunner = backgroundDraft,
+    this.signinCode,
   });
+
+  /// The one-use sign-in code the Survey Toolkit started it with (`--signin-code=`)
+  final String? signinCode;
   final AppState state;
   final FileIo files;
   final Account account;
@@ -42,7 +46,8 @@ class _AutoDraftAppState extends State<AutoDraftApp> {
   @override
   void initState() {
     super.initState();
-    widget.account.restore();
+    final code = widget.signinCode;
+    code == null ? widget.account.restore() : widget.account.signInFromToolkit(code);
     if (widget.checkForUpdates) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final c = _navigator.currentContext;

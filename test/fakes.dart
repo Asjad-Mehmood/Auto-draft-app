@@ -61,6 +61,10 @@ class FakeSite {
                 403,
               ),
       '/api/auth/verify-email' => http.Response(json({'user': user, 'token': 't2'}), 200),
+      '/api/toolkit/app-code/redeem' =>
+        (jsonDecode(req.body) as Map)['code'] == 'a' * 64 && (jsonDecode(req.body) as Map)['app'] == 'auto-draft'
+            ? http.Response(json({'user': user, 'token': 't3'}), 200)
+            : http.Response(json({'error': 'That sign-in has expired. Please sign in.'}), 401),
       '/api/auth/logout' => http.Response('{}', 200),
       '/api/user/activity' => http.Response('{}', 201),
       _ => http.Response(json({'error': 'Not found'}), 404),
@@ -91,7 +95,14 @@ class Harness {
   final site = FakeSite();
   late final Account account;
   // a PDF drawing is drafted directly, not in the background (tests run on fake time)
-  Widget get app => AutoDraftApp(state: state, files: files, account: account, pdfRunner: (work) async => work());
+  Widget get app => appWith();
+  Widget appWith({String? signinCode}) => AutoDraftApp(
+    state: state,
+    files: files,
+    account: account,
+    pdfRunner: (work) async => work(),
+    signinCode: signinCode,
+  );
 }
 
 /// A survey with mistakes in it, for the problem list
