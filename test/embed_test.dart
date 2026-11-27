@@ -31,7 +31,7 @@ void main() {
       ),
     );
     await t.pumpAndSettle();
-    expect(find.text('Your Excel to KML account'), findsNothing);
+    expect(find.text('Your SurveyX Digital account'), findsNothing);
     expect(find.text('Try the sample survey'), findsOneWidget);
     expect(site.requests.any((r) => r.url.path == '/api/toolkit/app-code/redeem'), isTrue);
   });
@@ -42,7 +42,7 @@ void main() {
       _host(AutoDraftView(store: Store.memory(), client: FakeSite().client, files: FakeFiles(), dropFiles: false)),
     );
     await t.pumpAndSettle();
-    expect(find.text('Your Excel to KML account'), findsOneWidget);
+    expect(find.text('Your SurveyX Digital account'), findsOneWidget);
   });
 
   testWidgets('the sample survey opens from inside the Toolkit too (its file is under packages/)', (t) async {

@@ -1,4 +1,4 @@
-// The Excel to KML account in Auto Draft: sign in or create an account (with the 6-digit code the
+// The SurveyX Digital account in Auto Draft: sign in or create an account (with the 6-digit code the
 // website emails), or sign in through the browser (Google and saved passwords work there). Once
 // signed in, the account is remembered on this PC and the app opens at once, offline too.
 // What is drawn stays on the PC: the website only learns that the app was used (and, when a drawing

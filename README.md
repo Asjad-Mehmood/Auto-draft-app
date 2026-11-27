@@ -40,7 +40,7 @@ levels written, every feature on its own layer.</p>
 
 <p align="center"><img src="docs/screens/3-drawing.png" width="760" alt="Auto Draft with the sample survey drawn"></p>
 
-Auto Draft is free; it is used with a free Excel to KML account (the same as exceltokml.com and the
+Auto Draft is free; it is used with a free SurveyX Digital account (the same as exceltokml.com and the
 other programs), signed in once and remembered on the PC. Surveys never leave the PC.
 
 ## Field codes
@@ -95,5 +95,5 @@ copies offer the update and check the SHA-256 before running it.
 
 ## Licence
 
-Copyright © 2026 Asjad Mehmood. All rights reserved. See [LICENSE](LICENSE).
-Developed by [www.exceltokml.com](https://www.exceltokml.com/).
+Copyright © 2026 SurveyX Digital. All rights reserved. See [LICENSE](LICENSE).
+Developed by [www.exceltokml.com](https://www.surveyxdigital.com/).
