@@ -93,7 +93,7 @@ BEGIN
             VALUE "FileDescription", "Auto Draft - survey points to a finished drawing" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "AutoDraft" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 Asjad Mehmood. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 SurveyX Digital. All rights reserved." "\0"
             VALUE "OriginalFilename", "AutoDraft.exe" "\0"
             VALUE "ProductName", "Auto Draft" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

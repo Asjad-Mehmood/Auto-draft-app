@@ -368,7 +368,7 @@ Sheet buildSheet(Drawing d, SheetInfo info) {
     ('Drawn by', info.drawnBy, 'Scale', '1:$scale  (${paper.label})'),
     ('Surveyed by', info.surveyedBy, 'Date', info.date),
   ];
-  text('Drawn with Auto Draft · www.exceltokml.com', (panel + fr) / 2, y + 1.6, 1.4, align: SheetAlign.center);
+  text('Drawn with Auto Draft · www.surveyxdigital.com', (panel + fr) / 2, y + 1.6, 1.4, align: SheetAlign.center);
   y += 4;
   tb.add(y);
   final mid = panel + (fr - panel) / 2;

@@ -1,4 +1,4 @@
-// The first screen: Auto Draft is used with a free Excel to KML account, the same as the website,
+// The first screen: Auto Draft is used with a free SurveyX Digital account, the same as the website,
 // Excel to KML, Traverse & Level and Slope Calculator. Once signed in, the account is remembered
 // on this PC and the app opens at once, offline too.
 import 'dart:async';
@@ -288,7 +288,7 @@ class _SignInCardState extends State<SignInCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'Your browser is open at exceltokml.com. Sign in there (Google works), then confirm this code:',
+            'Your browser is open at surveyxdigital.com. Sign in there (Google works), then confirm this code:',
             style: TextStyle(height: 1.45),
           ),
           const SizedBox(height: 14),
@@ -352,10 +352,10 @@ class _SignInCardState extends State<SignInCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Your Excel to KML account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const Text('Your SurveyX Digital account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
         const Text(
-          'Sign in with your Excel to KML account, or create one for free. One account works on exceltokml.com '
+          'Sign in with your SurveyX Digital account, or create one for free. One account works on surveyxdigital.com '
           'and in all our programs. Opened from the Survey Toolkit, you\'re signed in already.',
           style: TextStyle(color: Tone.muted, height: 1.45),
         ),

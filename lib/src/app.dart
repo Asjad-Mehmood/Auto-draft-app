@@ -1,4 +1,4 @@
-// The app: theme, the sign-in (an Excel to KML account), the window, and the update check.
+// The app: theme, the sign-in (an SurveyX Digital account), the window, and the update check.
 import 'package:flutter/material.dart';
 
 import 'account/account.dart';

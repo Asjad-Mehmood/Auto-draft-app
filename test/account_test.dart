@@ -16,7 +16,7 @@ void main() {
     final h = Harness(signedIn: false);
     await t.pumpWidget(h.appWith(signinCode: 'a' * 64));
     await t.pumpAndSettle();
-    expect(find.text('Your Excel to KML account'), findsNothing);
+    expect(find.text('Your SurveyX Digital account'), findsNothing);
     expect(h.account.signedIn, isTrue);
     expect(h.account.api.token, 't3');
     expect(signinCodeFrom(['--signin-code=${'a' * 64}']), 'a' * 64);
@@ -28,7 +28,7 @@ void main() {
     final h = Harness(signedIn: false);
     await t.pumpWidget(h.appWith(signinCode: 'b' * 64));
     await t.pumpAndSettle();
-    expect(find.text('Your Excel to KML account'), findsOneWidget);
+    expect(find.text('Your SurveyX Digital account'), findsOneWidget);
     expect(h.account.checking, isFalse);
   });
 
@@ -37,7 +37,7 @@ void main() {
     final h = Harness(signedIn: false);
     await t.pumpWidget(h.app);
     await t.pumpAndSettle();
-    expect(find.text('Your Excel to KML account'), findsOneWidget);
+    expect(find.text('Your SurveyX Digital account'), findsOneWidget);
     expect(find.text('Try the sample survey'), findsNothing);
 
     await t.enterText(find.byKey(const ValueKey('signin-email')), 'Asif@Example.com');
@@ -94,7 +94,7 @@ void main() {
     expect(find.text('M. Asif'), findsOneWidget);
     await t.tap(find.text('Sign out'));
     await t.pumpAndSettle();
-    expect(find.text('Your Excel to KML account'), findsOneWidget);
+    expect(find.text('Your SurveyX Digital account'), findsOneWidget);
     expect(h.store.readJson('account'), isNull);
   });
 

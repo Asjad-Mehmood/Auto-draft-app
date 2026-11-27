@@ -1,4 +1,4 @@
-// Talking to exceltokml.com: the same account, sign-in and email check as Excel to KML, Traverse &
+// Talking to the website (surveyxdigital.com): the same account, sign-in and email check as Excel to KML, Traverse &
 // Level and Slope Calculator. Every call names the app, so the website counts its use (Admin).
 import 'dart:convert';
 
@@ -20,7 +20,7 @@ class ApiError implements Exception {
 }
 
 /// The website's address (a copy on this computer with --dart-define=API_BASE=http://localhost:3000)
-String defaultApiBase() => const String.fromEnvironment('API_BASE', defaultValue: 'https://www.exceltokml.com');
+String defaultApiBase() => const String.fromEnvironment('API_BASE', defaultValue: 'https://www.surveyxdigital.com');
 
 class Api {
   Api({required this.base, required this.client});
@@ -46,7 +46,7 @@ class Api {
     try {
       res = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 25)));
     } catch (_) {
-      throw ApiError('Could not reach exceltokml.com. Check your connection and try again.');
+      throw ApiError('Could not reach surveyxdigital.com. Check your connection and try again.');
     }
     Map<String, Object?> json = const {};
     try {
