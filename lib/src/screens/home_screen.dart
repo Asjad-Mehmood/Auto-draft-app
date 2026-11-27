@@ -14,6 +14,8 @@ import '../engine/drawing.dart';
 import '../engine/pdf.dart';
 import '../state/app_state.dart';
 import '../state/files.dart';
+import '../support/app_info.dart';
+import '../support/help.dart';
 import '../ui/drawing_view.dart';
 import '../ui/theme.dart';
 import 'columns_dialog.dart';
@@ -365,6 +367,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: CallbackShortcuts(
               bindings: {
                 const SingleActivator(LogicalKeyboardKey.keyO, control: true): () => _open(context),
+                const SingleActivator(LogicalKeyboardKey.f1): () =>
+                    showHelp(context, appInfo, shortcuts: () => showShortcuts(context)),
                 if (d != null) const SingleActivator(LogicalKeyboardKey.keyS, control: true): () => _save(context),
               },
               child: Focus(autofocus: true, child: Scaffold(body: body)),
@@ -460,6 +464,13 @@ class _TopBar extends StatelessWidget {
           ] else
             const Spacer(),
           if (state.fileName != null) const Spacer(),
+          IconButton(
+            key: const ValueKey('help'),
+            tooltip: 'Help (F1)',
+            color: Colors.white,
+            onPressed: () => showHelp(context, appInfo, shortcuts: () => showShortcuts(context)),
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
           _BarButton(Icons.folder_open_outlined, 'Open', 'Open a survey file (Ctrl+O)', onOpen),
           if (!has) _BarButton(Icons.science_outlined, 'Sample', 'Try the sample survey', onSample),
           if (has) ...[

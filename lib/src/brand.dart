@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 const appName = 'Auto Draft';
 const appTagline = 'Survey points to a finished drawing';
-const appPublisher = 'Excel to KML';
+const appPublisher = 'exceltokml.com';
 const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 const websiteUrl = 'https://www.exceltokml.com';
 
