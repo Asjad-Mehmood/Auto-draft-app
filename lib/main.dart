@@ -4,12 +4,15 @@ import 'package:http/http.dart' as http;
 import 'src/account/account.dart';
 import 'src/account/api.dart';
 import 'src/app.dart';
+import 'src/brand.dart';
 import 'src/state/app_state.dart';
 import 'src/state/files.dart';
 import 'src/state/store.dart';
+import 'src/support/crash_log.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  CrashLog.start(appName: appName, version: appVersion);
   final store = await Store.open();
   runApp(
     AutoDraftApp(

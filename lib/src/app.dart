@@ -9,6 +9,8 @@ import 'screens/pdf_draft_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'state/app_state.dart';
 import 'state/files.dart';
+import 'support/app_info.dart';
+import 'support/crash_log.dart';
 import 'ui/theme.dart';
 import 'update/updater_io.dart';
 
@@ -65,6 +67,7 @@ class _AutoDraftAppState extends State<AutoDraftApp> {
     title: appName,
     debugShowCheckedModeBanner: false,
     theme: appTheme(),
+    builder: (context, child) => CrashNotice(onReport: appInfo.report, child: child!),
     home: ListenableBuilder(
       listenable: widget.account,
       builder: (context, _) => widget.account.signedIn
